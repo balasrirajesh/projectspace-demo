@@ -3,7 +3,7 @@ import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
 import 'package:alumini_screen/src/pages/features/Mentorship/alumni_requests_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
-class Dashboard extends StatelessWidget {
+class Dashboard extends StatefulWidget {
   final String userName;
   final String techField;
 
@@ -14,9 +14,23 @@ class Dashboard extends StatelessWidget {
   });
 
   @override
+  State<Dashboard> createState() => _DashboardState();
+}
+
+class _DashboardState extends State<Dashboard> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA), // Premium light grey background
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -26,6 +40,8 @@ class Dashboard extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildGreeting(),
+                  const SizedBox(height: 24),
+                  _buildSearchField(),
                   const SizedBox(height: 24),
                   _buildStatsGrid(context),
                   const SizedBox(height: 32),
@@ -40,6 +56,38 @@ class Dashboard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+        decoration: InputDecoration(
+          hintText: "Search requests or events...",
+          prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+          suffixIcon: _searchQuery.isNotEmpty 
+            ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () {
+                _searchController.clear();
+                setState(() => _searchQuery = "");
+              })
+            : null,
         ),
       ),
     );
@@ -96,7 +144,7 @@ class Dashboard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Welcome back, $userName!",
+          "Welcome back, ${widget.userName}!",
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -112,7 +160,7 @@ class Dashboard extends StatelessWidget {
             border: Border.all(color: Colors.blue.withOpacity(0.2)),
           ),
           child: Text(
-            techField,
+            widget.techField,
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -244,28 +292,34 @@ class Dashboard extends StatelessWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final actions = [
+      {"title": "Post Job", "icon": Icons.add_circle_outline, "color": Colors.blueAccent},
+      {"title": "Events", "icon": Icons.event_note, "color": Colors.indigoAccent},
+      {"title": "Requests", "icon": Icons.pending_actions, "color": Colors.teal, "notif": true},
+    ];
+
+    final filteredActions = actions.where((a) => (a['title'] as String).toLowerCase().contains(_searchQuery)).toList();
+
+    if (filteredActions.isEmpty) return const SizedBox.shrink();
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: [
-          _buildActionButton(context, "Post Job", Icons.add_circle_outline, Colors.blueAccent),
-          const SizedBox(width: 12),
-          _buildActionButton(context, "Events", Icons.event_note, Colors.indigoAccent),
-          const SizedBox(width: 12),
-          _buildActionButton(
-            context,
-            "Requests", 
-            Icons.pending_actions, 
-            Colors.teal,
-            hasNotification: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AlumniRequestsPage()),
-              );
-            },
-          ),
-        ],
+        children: filteredActions.map((a) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _buildActionButton(
+              context, 
+              a['title'] as String, 
+              a['icon'] as IconData, 
+              a['color'] as Color,
+              hasNotification: a['notif'] == true,
+              onTap: a['title'] == "Requests" ? () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AlumniRequestsPage()));
+              } : null,
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -331,29 +385,36 @@ class Dashboard extends StatelessWidget {
   }
 
   Widget _buildRecentActivityList() {
+    final activities = [
+      {"title": "Software Engineer Intern", "sub": "Google • Posted Yesterday", "icon": Icons.work, "color": Colors.blue},
+      {"title": "Mentorship Request Accepted", "sub": "By Sarah Jenkins • 2 days ago", "icon": Icons.school, "color": Colors.orange},
+      {"title": "Alumni Meetup 2026", "sub": "Event RSVP Confirmed • Last week", "icon": Icons.event, "color": Colors.indigo},
+    ];
+
+    final filteredActivities = activities.where((a) {
+      return (a['title'] as String).toLowerCase().contains(_searchQuery) ||
+             (a['sub'] as String).toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (filteredActivities.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Text("No matching activities found.", style: TextStyle(color: Colors.grey[500])),
+      );
+    }
+
     return Column(
-      children: [
-        _buildActivityItem(
-          "Software Engineer Intern",
-          "Google • Posted Yesterday",
-          Icons.work,
-          Colors.blue,
-        ),
-        const SizedBox(height: 12),
-        _buildActivityItem(
-          "Mentorship Request Accepted",
-          "By Sarah Jenkins • 2 days ago",
-          Icons.school,
-          Colors.orange,
-        ),
-        const SizedBox(height: 12),
-        _buildActivityItem(
-          "Alumni Meetup 2026",
-          "Event RSVP Confirmed • Last week",
-          Icons.event,
-          Colors.indigo,
-        ),
-      ],
+      children: filteredActivities.map((a) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildActivityItem(
+            a['title'] as String,
+            a['sub'] as String,
+            a['icon'] as IconData,
+            a['color'] as Color,
+          ),
+        );
+      }).toList(),
     );
   }
 

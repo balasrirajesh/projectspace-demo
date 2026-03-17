@@ -9,6 +9,8 @@ import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
 import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 
+import 'package:alumini_screen/src/pages/features/Chat/chat_detail_page.dart';
+
 class ProfileScreen extends StatelessWidget {
   final String userName;
   final String techField;
@@ -212,7 +214,7 @@ class ProfileScreen extends StatelessWidget {
           "Host Webinars",
           Icons.video_camera_front_outlined,
           const Color(0xFFBA68C8),
-          const DetailPage(title: "Upcoming Sessions", icon: Icons.video_camera_front_outlined, themeColor: Color(0xFFBA68C8)),
+          const PlaceholderScreen(title: "Sessions", icon: Icons.video_camera_front_outlined),
         ),
         _buildDashboardCard(
           context,
@@ -274,34 +276,18 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildActionButton(
-            context,
-            "Start Session",
-            Icons.add_circle_outline,
-            const Color(0xFF7B66FF),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildActionButton(
-            context,
-            "Manage Mentees",
-            Icons.people_outline,
-            Colors.white,
-            isOutlined: true,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, {bool isOutlined = false}) {
     return ElevatedButton.icon(
-      onPressed: () {},
+      onPressed: () {
+        if (label == "Start Session") {
+          _showStartSessionSheet(context);
+        } else if (label == "Manage Mentees") {
+          // Navigation logic for Manage Mentees (e.g., navigating to Inbox)
+          // For now, since it's a tab, we can't easily switch without 
+          // state management, so we'll show a message or use Navigator
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const MentorInboxPage()));
+        }
+      },
       icon: Icon(icon, size: 18),
       label: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
@@ -351,39 +337,121 @@ class ProfileScreen extends StatelessWidget {
             ),
           )
         else
-          ...activeMentees.take(2).map((mentee) => _buildMenteeCard(mentee)),
+          ...activeMentees.take(2).map((mentee) => _buildMenteeCard(context, mentee)),
       ],
     );
   }
 
-  Widget _buildMenteeCard(MentorshipRequest mentee) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+  Widget _buildMenteeCard(BuildContext context, MentorshipRequest mentee) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatDetailPage(mentorship: mentee),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.blueAccent.withOpacity(0.1),
+              child: Text(mentee.studentName[0], style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(mentee.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(mentee.topics.first, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
         ],
+      ),
+    );
+  }
+
+  void _showStartSessionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Start New Session",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Host a webinar or a quick Q&A session.",
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            _buildSessionOption(Icons.video_camera_front_outlined, "Video Webinar", "Host a session for up to 50 students."),
+            const SizedBox(height: 12),
+            _buildSessionOption(Icons.forum_outlined, "Group Q&A", "A quick text-based interaction."),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7B66FF),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text("Go Live", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionOption(IconData icon, String title, String desc) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.blueAccent.withOpacity(0.1),
-            child: Text(mentee.studentName[0], style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: Colors.blueAccent),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(mentee.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(mentee.topics.first, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(desc, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Colors.grey),
+          Radio(value: true, groupValue: true, onChanged: (_) {}),
         ],
       ),
     );
