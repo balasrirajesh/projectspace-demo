@@ -42,7 +42,7 @@ class _DashboardState extends State<Dashboard> {
                   const SizedBox(height: 24),
                   _buildStatsGrid(context),
                   const SizedBox(height: 32),
-                  _buildSectionTitle('Quick Actions'),
+                  _buildSectionTitle('Mentor Tools'),
                   const SizedBox(height: 16),
                   _buildQuickActions(context),
                   const SizedBox(height: 32),
@@ -75,7 +75,7 @@ class _DashboardState extends State<Dashboard> {
         controller: _searchController,
         onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
         decoration: InputDecoration(
-          hintText: "Search requests or events...",
+          hintText: "Search mentees, sessions or queries...",
           prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -197,9 +197,9 @@ class _DashboardState extends State<Dashboard> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _buildStatCard(context, "Jobs Posted", "5", Icons.work_outline, Colors.blue)),
+              Expanded(child: _buildStatCard(context, "Mentees Guided", "12", Icons.people_outline, Colors.blue)),
               const SizedBox(width: 16),
-              Expanded(child: _buildStatCard(context, "Applications", "18", Icons.people_outline, Colors.green)),
+              Expanded(child: _buildStatCard(context, "Sessions Held", "45", Icons.event_available_outlined, Colors.green)),
             ],
           ),
         ),
@@ -208,12 +208,13 @@ class _DashboardState extends State<Dashboard> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Consumer<MentorshipProvider>(
-                builder: (context, mentor, _) => 
-                  Expanded(child: _buildStatCard(context, "Mentorships", mentor.acceptedCount.toString(), Icons.school_outlined, Colors.orange)),
+              Selector<MentorshipProvider, int>(
+                selector: (_, p) => p.acceptedCount,
+                builder: (context, count, _) => 
+                  Expanded(child: _buildStatCard(context, "Active Mentees", count.toString(), Icons.school_outlined, Colors.orange)),
               ),
               const SizedBox(width: 16),
-              Expanded(child: _buildStatCard(context, "New Messages", "6", Icons.chat_bubble_outline, Colors.purple)),
+              Expanded(child: _buildStatCard(context, "Unresolved Queries", "3", Icons.question_answer_outlined, Colors.purple)),
             ],
           ),
         ),

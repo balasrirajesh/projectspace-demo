@@ -34,7 +34,7 @@ class MentorshipRequestCard extends StatelessWidget {
                   radius: 24,
                   backgroundColor: Colors.blue.withOpacity(0.1),
                   child: Text(
-                    request.studentName[0],
+                    request.student.name[0],
                     style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -44,11 +44,11 @@ class MentorshipRequestCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.studentName,
+                        request.student.name,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        "${request.studentBranch} • ${request.studentYear}",
+                        "${request.student.branch} • ${request.student.year}",
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
@@ -65,7 +65,7 @@ class MentorshipRequestCard extends StatelessWidget {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: request.studentSkills.map((skill) => _buildSkillChip(skill)).toList(),
+              children: request.student.skills.map((skill) => _buildSkillChip(skill)).toList(),
             ),
             const SizedBox(height: 16),
             const Text(

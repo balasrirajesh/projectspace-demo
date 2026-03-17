@@ -33,10 +33,13 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
 
     final request = MentorshipRequest(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      studentName: "John Doe", // Mock student name
-      studentBranch: "Computer Science",
-      studentYear: "3rd Year",
-      studentSkills: ["Flutter", "Dart"],
+      student: Student(
+        id: "s1",
+        name: "John Doe",
+        branch: "Computer Science",
+        year: "3rd Year",
+        skills: ["Flutter", "Dart"],
+      ),
       reason: _reasonController.text,
       topics: _selectedTopics,
       preferredSchedule: _scheduleController.text.isEmpty ? null : _scheduleController.text,

@@ -1,25 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/models/mentorship_model.dart';
-import 'package:alumini_screen/src/services/mentorship_service.dart';
-import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
-import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
-import 'package:alumini_screen/src/pages/features/Chat/chat_detail_page.dart';
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
-class MentorInboxPage extends StatefulWidget {
+class MentorInboxPage extends StatelessWidget {
   const MentorInboxPage({super.key});
-
-  @override
-  State<MentorInboxPage> createState() => _MentorInboxPageState();
-}
-
-class _MentorInboxPageState extends State<MentorInboxPage> {
-  final MentorshipService _service = MentorshipService();
-
-  @override
-  void initState() {
-    super.initState();
-    _service.seedData();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,16 +24,12 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: StreamBuilder<List<MentorshipRequest>>(
-        stream: _service.requestsStream,
-        initialData: _service.getRequests(),
-        builder: (context, snapshot) {
-          final allRequests = snapshot.data ?? [];
-          final pendingRequests = allRequests.where((r) => r.status == MentorshipStatus.pending).toList();
-          final activeChats = allRequests.where((r) => r.status == MentorshipStatus.accepted).toList();
-          final history = allRequests.where((r) => r.status == MentorshipStatus.ended || r.status == MentorshipStatus.rejected).toList();
-
-          if (allRequests.isEmpty) {
+      body: Consumer<MentorshipProvider>(
+        builder: (context, provider, _) {
+          final pendingRequests = provider.pendingRequests;
+          final activeChats = provider.acceptedMentees;
+          
+          if (pendingRequests.isEmpty && activeChats.isEmpty) {
             return _buildEmptyState();
           }
 
@@ -66,8 +45,8 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
                         final request = pendingRequests[index];
                         return MentorshipRequestCard(
                           request: request,
-                          onAccept: () => _updateStatus(request.id, MentorshipStatus.accepted),
-                          onReject: () => _updateStatus(request.id, MentorshipStatus.rejected),
+                          onAccept: () => provider.acceptRequest(request.id),
+                          onReject: () => provider.rejectRequest(request.id),
                         );
                       },
                       childCount: pendingRequests.length,
@@ -83,40 +62,14 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final chat = activeChats[index];
-                        return _buildChatCard(chat);
+                        return _buildChatCard(context, chat);
                       },
                       childCount: activeChats.length,
                     ),
                   ),
                 ),
               ],
-              if (history.isNotEmpty) ...[
-                _buildHeader("History", history.length),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final item = history[index];
-                        return Opacity(
-                          opacity: 0.6,
-                          child: MentorshipRequestCard(
-                            request: item,
-                            onAccept: () {},
-                            onReject: () {},
-                          ),
-                        );
-                      },
-                      childCount: history.length,
-                    ),
-                  ),
-                ),
-              ],
-              if (pendingRequests.isEmpty && activeChats.isEmpty)
-                SliverFillRemaining(
-                  child: _buildEmptyState(),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)), // Space for floating navbar
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           );
         },
@@ -188,7 +141,7 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
     );
   }
 
-  Widget _buildChatCard(MentorshipRequest chat) {
+  Widget _buildChatCard(BuildContext context, MentorshipRequest chat) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
@@ -198,18 +151,12 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
       ),
       child: InkWell(
         onTap: () {
-          if (chat.status == MentorshipStatus.accepted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatDetailPage(mentorship: chat),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Accept request to start chat")),
-            );
-          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatDetailPage(mentorship: chat),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(20),
         child: Padding(
@@ -222,7 +169,7 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
                     radius: 28,
                     backgroundColor: Colors.blue.withOpacity(0.1),
                     child: Text(
-                      chat.studentName[0],
+                      chat.student.name[0],
                       style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
@@ -250,7 +197,7 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          chat.studentName,
+                          chat.student.name,
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         Text(

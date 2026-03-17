@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AuthProvider with ChangeNotifier {
+  bool _isLoading = false;
+  String? _error;
+
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
   String _userName = "Alex";
   String _techField = "Flutter Developer";
   String _company = "Google";

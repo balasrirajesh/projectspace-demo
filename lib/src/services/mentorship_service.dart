@@ -63,8 +63,8 @@ class MentorshipService {
   // Mock AI Logic
   List<String> getReplySuggestions(MentorshipRequest request) {
     return [
-      "Hi ${request.studentName}, I'd love to help with your request on ${request.topics.first}!",
-      "Hello! Your background in ${request.studentSkills.first} looks great. Happy to mentor you.",
+      "Hi ${request.student.name}, I'd love to help with your request on ${request.topics.first}!",
+      "Hello! Your background in ${request.student.skills.first} looks great. Happy to mentor you.",
       "I'm available during your preferred schedule. Let's connect!",
     ];
   }
@@ -74,10 +74,13 @@ class MentorshipService {
     if (_requests.isEmpty) {
       submitRequest(MentorshipRequest(
         id: "1",
-        studentName: "John Doe",
-        studentBranch: "Computer Science",
-        studentYear: "3rd Year",
-        studentSkills: ["Flutter", "Dart", "Firebase"],
+        student: Student(
+          id: "s1",
+          name: "John Doe",
+          branch: "Computer Science",
+          year: "3rd Year",
+          skills: ["Flutter", "Dart", "Firebase"],
+        ),
         reason: "I want to learn more about architecture patterns in Flutter.",
         topics: ["Flutter Best Practices", "Resume & Portfolio Review"],
         createdAt: DateTime.now().subtract(const Duration(days: 1)),

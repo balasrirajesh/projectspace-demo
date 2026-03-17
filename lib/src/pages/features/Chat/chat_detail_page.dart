@@ -1,8 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/models/chat_model.dart';
-import 'package:alumini_screen/src/models/mentorship_model.dart';
-import 'package:alumini_screen/src/services/mentorship_service.dart';
-import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/chat_provider.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final MentorshipRequest mentorship;
@@ -16,7 +13,6 @@ class ChatDetailPage extends StatefulWidget {
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final MentorshipService _service = MentorshipService();
 
   @override
   void dispose() {
@@ -25,21 +21,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage(ChatProvider chatProvider) {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
     final newMessage = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      senderId: 'mentor', // Current user is mentor in this perspective
+      senderId: 'mentor',
       text: text,
       timestamp: DateTime.now(),
     );
 
-    _service.sendMessage(widget.mentorship.id, newMessage);
+    chatProvider.sendMessage("chat_${widget.mentorship.id}", newMessage);
     _messageController.clear();
     
-    // Auto scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -50,7 +45,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       }
     });
 
-    // Mock reply from student after 2 seconds
+    // Mock reply
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         final reply = ChatMessage(
@@ -59,13 +54,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           text: "Thanks for the advice! I'll definitely look into that.",
           timestamp: DateTime.now(),
         );
-        _service.sendMessage(widget.mentorship.id, reply);
+        chatProvider.sendMessage("chat_${widget.mentorship.id}", reply);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final chatProvider = Provider.of<ChatProvider>(context);
+    final chatId = "chat_${widget.mentorship.id}";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
@@ -82,7 +80,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               radius: 18,
               backgroundColor: Colors.blueAccent.withOpacity(0.1),
               child: Text(
-                widget.mentorship.studentName[0],
+                widget.mentorship.student.name[0],
                 style: const TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
@@ -92,7 +90,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.mentorship.studentName,
+                    widget.mentorship.student.name,
                     style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const Text(
@@ -113,11 +111,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<List<ChatMessage>>(
-              stream: _service.getChatStream(widget.mentorship.id),
-              initialData: _service.getMessages(widget.mentorship.id),
-              builder: (context, snapshot) {
-                final messages = snapshot.data ?? [];
+            child: Consumer<ChatProvider>(
+              builder: (context, provider, _) {
+                final messages = provider.getMessages(chatId);
                 
                 if (messages.isEmpty) {
                   return _buildEmptyState();
@@ -136,7 +132,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               },
             ),
           ),
-          _buildMessageInput(),
+          _buildMessageInput(chatProvider),
         ],
       ),
     );
@@ -157,7 +153,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              "You can now chat with ${widget.mentorship.studentName} about ${widget.mentorship.topics.first}.",
+              "You can now chat with ${widget.mentorship.student.name} about ${widget.mentorship.topics.first}.",
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[400], fontSize: 13),
             ),
@@ -178,7 +174,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               radius: 14,
               backgroundColor: Colors.grey[300],
               child: Text(
-                widget.mentorship.studentName[0],
+                widget.mentorship.student.name[0],
                 style: const TextStyle(fontSize: 10, color: Colors.white),
               ),
             ),
@@ -231,7 +227,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(ChatProvider chatProvider) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -278,7 +274,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ),
               child: IconButton(
                 icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _sendMessage,
+                onPressed: () => _sendMessage(chatProvider),
               ),
             ),
           ],

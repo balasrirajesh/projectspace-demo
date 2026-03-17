@@ -189,15 +189,15 @@ class ProfileScreen extends StatelessWidget {
       children: [
         _buildDashboardCard(
           context,
-          "Experience",
-          "Expertise & History",
+          "Background",
+          "Career & History",
           Icons.workspace_premium_outlined,
           const Color(0xFF64B5F6),
           const ProfessionalPage(),
         ),
         _buildDashboardCard(
           context,
-          "Skillset",
+          "Expertise",
           "Mentoring Topics",
           Icons.psychology_outlined,
           const Color(0xFF81C784),
@@ -205,7 +205,7 @@ class ProfileScreen extends StatelessWidget {
         ),
         _buildDashboardCard(
           context,
-          "Requests",
+          "Inquiries",
           "Student Queries",
           Icons.pending_actions_outlined,
           const Color(0xFFFFB74D),
@@ -213,24 +213,24 @@ class ProfileScreen extends StatelessWidget {
         ),
         _buildDashboardCard(
           context,
-          "Sessions",
-          "Host Webinars",
+          "Webinars",
+          "Host Live Sessions",
           Icons.video_camera_front_outlined,
           const Color(0xFFBA68C8),
           const PlaceholderScreen(title: "Sessions", icon: Icons.video_camera_front_outlined),
         ),
         _buildDashboardCard(
           context,
-          "Awards",
-          "Recognition",
+          "Badges",
+          "Mentor Recognition",
           Icons.emoji_events_outlined,
           const Color(0xFFFFD54F),
           const DetailPage(title: "Mentor Awards", icon: Icons.emoji_events_outlined, themeColor: Color(0xFFFFD54F)),
         ),
         _buildDashboardCard(
           context,
-          "Contact",
           "Office Hours",
+          "Availability",
           Icons.alternate_email_outlined,
           const Color(0xFFF06292),
           const ContactPage(),
@@ -393,14 +393,14 @@ class ProfileScreen extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: Colors.blueAccent.withOpacity(0.1),
-              child: Text(mentee.studentName[0], style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+              child: Text(mentee.student.name[0], style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(mentee.studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(mentee.student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   Text(mentee.topics.first, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 ],
               ),

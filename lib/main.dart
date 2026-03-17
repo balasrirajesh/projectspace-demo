@@ -12,10 +12,13 @@ import 'package:alumini_screen/src/pages/features/Auth/login_page.dart';
 void main() {
   final providers = [
     ChangeNotifierProvider(create: (_) => AuthProvider()),
-    ChangeNotifierProvider(create: (_) => MentorshipProvider()),
     ChangeNotifierProvider(create: (_) => ChatProvider()),
     ChangeNotifierProvider(create: (_) => NotificationProvider()),
     ChangeNotifierProvider(create: (_) => UIProvider()),
+    ChangeNotifierProxyProvider<ChatProvider, MentorshipProvider>(
+      create: (_) => MentorshipProvider(),
+      update: (_, chat, mentorship) => mentorship!..setChatProvider(chat),
+    ),
   ];
 
   if (kIsWeb) {
