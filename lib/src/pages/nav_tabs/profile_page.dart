@@ -10,6 +10,8 @@ import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 
 import 'package:alumini_screen/src/pages/features/Chat/chat_detail_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/mentor_inbox_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
@@ -276,6 +278,31 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildQuickActionButtons(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionButton(
+            context,
+            "Start Session",
+            Icons.add_circle_outline,
+            const Color(0xFF7B66FF),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildActionButton(
+            context,
+            "Manage Mentees",
+            Icons.people_outline,
+            Colors.white,
+            isOutlined: true,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, {bool isOutlined = false}) {
     return ElevatedButton.icon(
       onPressed: () {
@@ -378,7 +405,8 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const Icon(Icons.chevron_right, color: Colors.grey),
-        ],
+          ],
+        ),
       ),
     );
   }
