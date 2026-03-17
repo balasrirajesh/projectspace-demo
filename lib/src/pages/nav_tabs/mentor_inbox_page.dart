@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
-import 'package:alumini_screen/src/pages/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/detail_page.dart';
 
 class MentorInboxPage extends StatefulWidget {
   const MentorInboxPage({super.key});

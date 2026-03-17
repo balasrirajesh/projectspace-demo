@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/pages/dashboard_page.dart';
-import 'package:alumini_screen/src/pages/profile_page.dart';
-import 'package:alumini_screen/src/pages/mentor_inbox_page.dart';
-import 'package:alumini_screen/src/pages/placeholder_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/dashboard_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/profile_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/mentor_inbox_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 import 'package:alumini_screen/src/widgets/floating_navbar.dart';
 
 class MainLayout extends StatefulWidget {
@@ -28,10 +28,10 @@ class _MainLayoutState extends State<MainLayout> {
   void initState() {
     super.initState();
     _pages = [
-      Dashboard(userName: widget.userName, techField: widget.techField),
-      const MentorInboxPage(),
-      const PlaceholderScreen(title: "Notifications", icon: Icons.notifications_none),
-      ProfileScreen(userName: widget.userName, techField: widget.techField),
+      Dashboard(userName: widget.userName, techField: widget.techField), // Index 0
+      const MentorInboxPage(),                                        // Index 1 (Chat)
+      const PlaceholderScreen(title: "Alerts", icon: Icons.notifications_none), // Index 2 (Alerts)
+      ProfileScreen(userName: widget.userName, techField: widget.techField),   // Index 3 (Profile)
     ];
   }
 

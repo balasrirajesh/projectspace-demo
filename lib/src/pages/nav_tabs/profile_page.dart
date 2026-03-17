@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/pages/professional_page.dart';
-import 'package:alumini_screen/src/pages/skills_page.dart';
-import 'package:alumini_screen/src/pages/mentorship_page.dart';
-import 'package:alumini_screen/src/pages/opportunities_page.dart';
-import 'package:alumini_screen/src/pages/achievements_page.dart';
-import 'package:alumini_screen/src/pages/activities_page.dart';
-import 'package:alumini_screen/src/pages/notes_page.dart';
-import 'package:alumini_screen/src/pages/contact_page.dart';
-import 'package:alumini_screen/src/pages/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/professional_page.dart';
+import 'package:alumini_screen/src/pages/features/skills_page.dart';
+import 'package:alumini_screen/src/pages/features/mentorship_page.dart';
+import 'package:alumini_screen/src/pages/features/opportunities_page.dart';
+import 'package:alumini_screen/src/pages/features/achievements_page.dart';
+import 'package:alumini_screen/src/pages/features/activities_page.dart';
+import 'package:alumini_screen/src/pages/features/notes_page.dart';
+import 'package:alumini_screen/src/pages/features/contact_page.dart';
+import 'package:alumini_screen/src/pages/features/detail_page.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;

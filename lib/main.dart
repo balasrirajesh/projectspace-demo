@@ -1,4 +1,4 @@
-import 'package:alumini_screen/src/pages/login_page.dart';
+import 'package:alumini_screen/src/pages/features/login_page.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

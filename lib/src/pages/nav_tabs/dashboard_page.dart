@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/pages/detail_page.dart';
-import 'package:alumini_screen/src/pages/alumni_requests_page.dart';
+import 'package:alumini_screen/src/pages/features/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/alumni_requests_page.dart';
+import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
 class Dashboard extends StatelessWidget {
   final String userName;

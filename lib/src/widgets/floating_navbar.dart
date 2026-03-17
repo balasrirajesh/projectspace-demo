@@ -41,9 +41,9 @@ class FloatingNavbar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, Icons.dashboard_rounded, "Home"),
-                _buildNavItem(1, Icons.chat_bubble_rounded, "Chat"),
-                _buildNavItem(2, Icons.notifications_rounded, "Alerts"),
-                _buildNavItem(3, Icons.person_rounded, "Profile"),
+                _buildNavItem(1, Icons.forum_rounded, "Chat"),       // index 1
+                _buildNavItem(2, Icons.notifications_active_rounded, "Alerts"), // index 2
+                _buildNavItem(3, Icons.account_circle_rounded, "Profile"), // index 3
               ],
             ),
           ),
