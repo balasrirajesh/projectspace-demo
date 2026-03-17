@@ -3,6 +3,7 @@ import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
 import 'package:alumini_screen/src/pages/features/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/chat_detail_page.dart';
 
 class MentorInboxPage extends StatefulWidget {
   const MentorInboxPage({super.key});
@@ -197,16 +198,18 @@ class _MentorInboxPageState extends State<MentorInboxPage> {
       ),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DetailPage(
-                title: "Chat with ${chat.studentName}",
-                icon: Icons.chat_bubble_outline,
-                themeColor: Colors.blue,
+          if (chat.status == MentorshipStatus.accepted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatDetailPage(mentorship: chat),
               ),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Accept request to start chat")),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(20),
         child: Padding(
