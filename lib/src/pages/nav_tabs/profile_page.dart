@@ -13,15 +13,12 @@ import 'package:alumini_screen/src/pages/features/Chat/chat_detail_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/mentor_inbox_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
-class ProfileScreen extends StatelessWidget {
-  final String userName;
-  final String techField;
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/auth_provider.dart';
+import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
-  const ProfileScreen({
-    super.key,
-    required this.userName,
-    required this.techField,
-  });
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -39,12 +36,14 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Mentor Dashboard",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) => Text(
+                        "${auth.userName}'s Dashboard",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -119,41 +118,43 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "$techField • Senior Mentor",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.verified_user_outlined, color: Colors.white.withOpacity(0.7), size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          "Google • 5+ YOE",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
+                child: Consumer<AuthProvider>(
+                  builder: (context, auth, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.userName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${auth.techField} • Senior Mentor",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.verified_user_outlined, color: Colors.white.withOpacity(0.7), size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${auth.company} • ${auth.yoe} YOE",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -331,8 +332,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildActiveMenteesSection(BuildContext context) {
-    final MentorshipService service = MentorshipService();
-    final activeMentees = service.getRequests().where((r) => r.status == MentorshipStatus.accepted).toList();
+    final mentorship = context.watch<MentorshipProvider>();
+    final activeMentees = mentorship.acceptedMentees;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

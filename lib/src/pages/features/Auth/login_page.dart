@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/pages/features/Auth/signup_page.dart';
 import 'package:alumini_screen/src/main_layout.dart';
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() {
     // In a real app, you would authenticate here.
-    // For now, we just pass a name to the dashboard.
     String email = _emailController.text;
     String name = email.split('@').first;
     if (name.isEmpty) name = "Alex"; // Default
@@ -23,12 +24,17 @@ class _LoginScreenState extends State<LoginScreen> {
     // Capitalize first letter
     name = "${name[0].toUpperCase()}${name.substring(1)}";
 
-    // In a real app, you would fetch this from the database or state.
-    String tech = "Software Engineer"; 
+    // Update global state
+    context.read<AuthProvider>().updateProfile(
+      name: name,
+      field: "Software Engineer",
+      company: "Google",
+      yoe: "5+",
+    );
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => MainLayout(userName: name, techField: tech)),
+      MaterialPageRoute(builder: (context) => const MainLayout()),
     );
   }
 

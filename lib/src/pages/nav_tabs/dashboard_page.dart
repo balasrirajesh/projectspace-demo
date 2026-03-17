@@ -3,15 +3,12 @@ import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
 import 'package:alumini_screen/src/pages/features/Mentorship/alumni_requests_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
-class Dashboard extends StatefulWidget {
-  final String userName;
-  final String techField;
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/auth_provider.dart';
+import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
-  const Dashboard({
-    super.key,
-    this.userName = "Alex",
-    this.techField = "Flutter Developer",
-  });
+class Dashboard extends StatefulWidget {
+  const Dashboard({super.key});
 
   @override
   State<Dashboard> createState() => _DashboardState();
@@ -140,43 +137,45 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildGreeting() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Welcome back, ${widget.userName}!",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: Colors.grey[900],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.blue.withOpacity(0.2)),
-          ),
-          child: Text(
-            widget.techField,
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Hello, ${auth.userName}!",
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Here is what's happening in your network today.",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.blue.withOpacity(0.2)),
+            ),
+            child: Text(
+              auth.techField,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            "Here is what's happening in your network today.",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -209,7 +208,10 @@ class _DashboardState extends State<Dashboard> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _buildStatCard(context, "Mentorships", "3", Icons.school_outlined, Colors.orange)),
+              Consumer<MentorshipProvider>(
+                builder: (context, mentor, _) => 
+                  Expanded(child: _buildStatCard(context, "Mentorships", mentor.acceptedCount.toString(), Icons.school_outlined, Colors.orange)),
+              ),
               const SizedBox(width: 16),
               Expanded(child: _buildStatCard(context, "New Messages", "6", Icons.chat_bubble_outline, Colors.purple)),
             ],
@@ -219,7 +221,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, MaterialColor color) {
+  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -257,10 +259,10 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.shade50,
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color.shade600, size: 24),
+                  child: Icon(icon, color: color, size: 24),
                 ),
                 Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey[400]),
               ],

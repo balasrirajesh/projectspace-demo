@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
-import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
 class AlumniRequestsPage extends StatefulWidget {
   const AlumniRequestsPage({super.key});
@@ -11,12 +12,10 @@ class AlumniRequestsPage extends StatefulWidget {
 }
 
 class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
-  final MentorshipService _service = MentorshipService();
 
   @override
   void initState() {
     super.initState();
-    _service.seedData(); // Ensure we have some data to show
   }
 
   @override
@@ -30,11 +29,9 @@ class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: StreamBuilder<List<MentorshipRequest>>(
-        stream: _service.requestsStream,
-        initialData: _service.getRequests(),
-        builder: (context, snapshot) {
-          final requests = snapshot.data ?? [];
+      body: Consumer<MentorshipProvider>(
+        builder: (context, mentorship, _) {
+          final requests = mentorship.pendingRequests;
           
           if (requests.isEmpty) {
             return Center(
@@ -59,14 +56,8 @@ class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
               final request = requests[index];
               return MentorshipRequestCard(
                 request: request,
-                onAccept: () => _updateStatus(request.id, MentorshipStatus.accepted),
-                onReject: () {
-                  if (request.status == MentorshipStatus.accepted) {
-                    _updateStatus(request.id, MentorshipStatus.ended);
-                  } else {
-                    _updateStatus(request.id, MentorshipStatus.rejected);
-                  }
-                },
+                onAccept: () => _handleStatusChange(context, mentorship, request.id, MentorshipStatus.accepted),
+                onReject: () => _handleStatusChange(context, mentorship, request.id, MentorshipStatus.rejected),
               );
             },
           );
@@ -75,26 +66,21 @@ class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
     );
   }
 
-  void _updateStatus(String id, MentorshipStatus status) {
-    setState(() {
-      _service.updateRequestStatus(id, status);
-    });
-    
-    String message;
+  void _handleStatusChange(BuildContext context, MentorshipProvider provider, String id, MentorshipStatus status) {
     if (status == MentorshipStatus.accepted) {
-      message = "Request accepted! Chat is now enabled.";
-    } else if (status == MentorshipStatus.rejected) {
-      message = "Request rejected.";
+      provider.acceptRequest(id);
     } else {
-      message = "Mentorship ended.";
+      provider.rejectRequest(id);
     }
+    
+    String message = status == MentorshipStatus.accepted 
+        ? "Request accepted! Chat is now enabled." 
+        : "Request rejected.";
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message), 
-        backgroundColor: status == MentorshipStatus.accepted 
-          ? Colors.green 
-          : (status == MentorshipStatus.ended ? Colors.grey[800] : Colors.red),
+        backgroundColor: status == MentorshipStatus.accepted ? Colors.green : Colors.red,
       ),
     );
   }

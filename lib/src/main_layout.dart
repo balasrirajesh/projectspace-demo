@@ -6,14 +6,7 @@ import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 import 'package:alumini_screen/src/widgets/floating_navbar.dart';
 
 class MainLayout extends StatefulWidget {
-  final String userName;
-  final String techField;
-
-  const MainLayout({
-    super.key,
-    required this.userName,
-    required this.techField,
-  });
+  const MainLayout({super.key});
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
@@ -22,18 +15,12 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  late final List<Widget> _pages;
-
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      Dashboard(userName: widget.userName, techField: widget.techField), // Index 0
-      const MentorInboxPage(),                                        // Index 1 (Chat)
-      const PlaceholderScreen(title: "Alerts", icon: Icons.notifications_none), // Index 2 (Alerts)
-      ProfileScreen(userName: widget.userName, techField: widget.techField),   // Index 3 (Profile)
-    ];
-  }
+  final List<Widget> _pages = const [
+    Dashboard(), // Index 0
+    MentorInboxPage(), // Index 1 (Chat)
+    PlaceholderScreen(title: "Alerts", icon: Icons.notifications_none), // Index 2 (Alerts)
+    ProfileScreen(), // Index 3 (Profile)
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
