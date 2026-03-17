@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:alumini_screen/src/pages/features/detail_page.dart';
-import 'package:alumini_screen/src/pages/features/alumni_requests_page.dart';
+import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/Mentorship/alumni_requests_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
 class Dashboard extends StatelessWidget {

@@ -4,7 +4,7 @@ import 'package:alumini_screen/src/pages/features/profile_pages/skills_page.dart
 import 'package:alumini_screen/src/pages/features/profile_pages/activities_page.dart';
 import 'package:alumini_screen/src/pages/features/profile_pages/notes_page.dart';
 import 'package:alumini_screen/src/pages/features/profile_pages/contact_page.dart';
-import 'package:alumini_screen/src/pages/features/detail_page.dart';
+import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
