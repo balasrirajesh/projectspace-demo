@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/models/chat_model.dart';
 
+/// Singleton service that manages mentorship requests and chat message streams.
+/// 
+/// This service acts as the central hub for submitting requests, updating their status,
+/// and handling real-time chat updates via streams.
 class MentorshipService {
   static final MentorshipService _instance = MentorshipService._internal();
   factory MentorshipService() => _instance;
@@ -13,8 +17,12 @@ class MentorshipService {
   final _controller = StreamController<List<MentorshipRequest>>.broadcast();
   final _chatControllers = <String, StreamController<List<ChatMessage>>>{};
 
+  /// A broadcast stream of all mentorship requests.
   Stream<List<MentorshipRequest>> get requestsStream => _controller.stream;
   
+  /// Returns a broadcast stream for a specific chat session.
+  /// 
+  /// If the stream doesn't exist, it creates one and pushes any existing messages.
   Stream<List<ChatMessage>> getChatStream(String chatId) {
     if (!_chatControllers.containsKey(chatId)) {
       _chatControllers[chatId] = StreamController<List<ChatMessage>>.broadcast();
@@ -26,11 +34,13 @@ class MentorshipService {
     return _chatControllers[chatId]!.stream;
   }
 
+  /// Submits a new mentorship request and notifies listeners via the stream.
   void submitRequest(MentorshipRequest request) {
     _requests.add(request);
     _controller.add(List.unmodifiable(_requests));
   }
 
+  /// Updates the status of an existing request and broadcasts the change.
   void updateRequestStatus(String id, MentorshipStatus status) {
     final index = _requests.indexWhere((r) => r.id == id);
     if (index != -1) {
@@ -39,12 +49,15 @@ class MentorshipService {
     }
   }
 
+  /// Convenience method to mark a mentorship as 'ended'.
   void endMentorship(String id) {
     updateRequestStatus(id, MentorshipStatus.ended);
   }
 
+  /// Returns an unmodifiable list of all current requests.
   List<MentorshipRequest> getRequests() => List.unmodifiable(_requests);
 
+  /// Sends a message in a specific chat session and updates the corresponding stream.
   void sendMessage(String chatId, ChatMessage message) {
     if (!_chats.containsKey(chatId)) {
       _chats[chatId] = [];
@@ -56,11 +69,12 @@ class MentorshipService {
     }
   }
 
+  /// Returns an unmodifiable list of messages for a specific chat session.
   List<ChatMessage> getMessages(String chatId) {
     return List.unmodifiable(_chats[chatId] ?? []);
   }
   
-  // Mock AI Logic
+  /// Mock AI Logic: Provides a set of suggested replies for a given request.
   List<String> getReplySuggestions(MentorshipRequest request) {
     return [
       "Hi ${request.student.name}, I'd love to help with your request on ${request.topics.first}!",
@@ -69,7 +83,7 @@ class MentorshipService {
     ];
   }
 
-  // Seed data for demo
+  /// Seeds the service with initial mock data for demonstration purposes.
   void seedData() {
     if (_requests.isEmpty) {
       submitRequest(MentorshipRequest(
@@ -88,3 +102,4 @@ class MentorshipService {
     }
   }
 }
+

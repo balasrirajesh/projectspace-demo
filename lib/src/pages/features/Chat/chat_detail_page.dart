@@ -5,7 +5,12 @@ import 'package:alumini_screen/src/models/chat_model.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/providers/chat_provider.dart';
 
+/// A detailed chat screen for communication between a mentor and a student.
+/// 
+/// This page displays the message history for a specific mentorship request,
+/// allows the user to send messages, and includes a mock auto-reply feature.
 class ChatDetailPage extends StatefulWidget {
+  /// The mentorship request associated with this chat session.
   final MentorshipRequest mentorship;
 
   const ChatDetailPage({super.key, required this.mentorship});
@@ -25,6 +30,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.dispose();
   }
 
+  /// Sends a message and scrolls the list to the bottom.
+  /// 
+  /// Also triggers a mock reply from the student after a short delay.
   void _sendMessage(ChatProvider chatProvider) {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -39,6 +47,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     chatProvider.sendMessage("chat_${widget.mentorship.id}", newMessage);
     _messageController.clear();
     
+    // Smooth scroll to the latest message
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -49,7 +58,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       }
     });
 
-    // Mock reply
+    // Mock reply from the student
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         final reply = ChatMessage(
@@ -142,6 +151,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
+  /// Builds a placeholder UI for when there are no messages in the chat.
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -167,6 +177,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
+  /// Builds a stylized speech bubble for a single chat message.
   Widget _buildMessageBubble(ChatMessage message, bool isMe) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -231,6 +242,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
+  /// Builds the text input field and send button for the chat.
   Widget _buildMessageInput(ChatProvider chatProvider) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -287,3 +299,4 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 }
+

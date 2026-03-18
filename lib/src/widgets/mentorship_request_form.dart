@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/services/mentorship_service.dart';
 
+/// A bottom-sheet form that allows students to submit a mentorship request.
+/// 
+/// The form includes fields for selecting topics, providing a reason/message,
+/// and specifying a preferred schedule. It also includes mock AI logic
+/// to automatically select topics based on the reason provided.
 class MentorshipRequestForm extends StatefulWidget {
   const MentorshipRequestForm({super.key});
 
@@ -14,6 +19,7 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
   final _scheduleController = TextEditingController();
   final List<String> _selectedTopics = [];
 
+  /// Predefined list of topics that the user can choose from.
   final List<String> _availableTopics = [
     "DSA Interview Preparation",
     "Resume & Portfolio Review",
@@ -23,6 +29,7 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
     "Product Management",
   ];
 
+  /// Validates the form and submits the request to the [MentorshipService].
   void _submit() {
     if (_reasonController.text.isEmpty || _selectedTopics.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,8 +64,9 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
     );
   }
 
+  /// Mock AI Recommendation Logic: Automatically selects relevant topics
+  /// based on keywords found in the reason text.
   void _onReasonChanged(String text) {
-    // Mock AI Recommendation Logic
     if (text.toLowerCase().contains("dsa") || text.toLowerCase().contains("coding")) {
       if (!_selectedTopics.contains("DSA Interview Preparation")) {
         setState(() => _selectedTopics.add("DSA Interview Preparation"));
@@ -200,6 +208,7 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
     );
   }
 
+  /// Builds a stylized label for form sections.
   Widget _buildLabel(String text) {
     return Text(
       text,
@@ -207,3 +216,4 @@ class _MentorshipRequestFormState extends State<MentorshipRequestForm> {
     );
   }
 }
+

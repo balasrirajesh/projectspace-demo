@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 
+/// A generic detail page used for displaying information about various categories.
+/// 
+/// It features a customized theme color, an icon, and action cards for 
+/// common tasks like creating new entries or viewing history.
 class DetailPage extends StatelessWidget {
+  /// The title of the detail page (e.g., "Networking", "Jobs").
   final String title;
+  
+  /// The icon representing the category.
   final IconData icon;
+  
+  /// The theme color used for the icon background and accent elements.
   final Color themeColor;
 
   const DetailPage({
@@ -85,6 +94,7 @@ class DetailPage extends StatelessWidget {
     );
   }
 
+  /// Builds a clickable action card with an icon and description.
   Widget _buildActionCard(BuildContext context, String action, IconData icon, String subtitle) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -139,3 +149,4 @@ class DetailPage extends StatelessWidget {
     );
   }
 }
+

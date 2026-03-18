@@ -3,6 +3,11 @@ import 'package:alumini_screen/src/main_layout.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/providers/auth_provider.dart';
 
+/// A screen that allows new users to create an account.
+/// 
+/// This screen provides fields for name, email, professional field, and password.
+/// In this demo, it initializes the [AuthProvider] profile with the provided details
+/// and redirects to the [MainLayout].
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -17,6 +22,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  /// Performs mock signup logic.
+  /// 
+  /// Updates the [AuthProvider] with the user's details and navigates
+  /// to the main application layout while clearing the navigation stack.
   void _signup() {
     String name = _nameController.text;
     String tech = _techController.text;
@@ -31,7 +40,7 @@ class _SignupScreenState extends State<SignupScreen> {
       yoe: "0",
     );
 
-    // Pass name to MainLayout and clear navigation stack
+    // Navigate and clear navigation stack
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const MainLayout()),
@@ -154,6 +163,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  /// Builds a stylized text field for user input.
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -187,3 +197,4 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
+

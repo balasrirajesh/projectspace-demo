@@ -4,6 +4,11 @@ import 'package:alumini_screen/src/services/mentorship_service.dart';
 import 'package:alumini_screen/src/services/persistence_service.dart';
 import 'package:alumini_screen/src/providers/chat_provider.dart';
 
+/// Manages the state of mentorship requests and sessions.
+/// 
+/// This provider handles loading requests from the service, filtering them by status,
+/// and performing actions like accepting or rejecting requests. It also stays
+/// synchronized with the [ChatProvider] to create sessions when requests are accepted.
 class MentorshipProvider with ChangeNotifier {
   final MentorshipService _service = MentorshipService();
   final PersistenceService _persistence = PersistenceService();
@@ -12,11 +17,15 @@ class MentorshipProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  /// Whether a mentorship operation is currently in progress.
   bool get isLoading => _isLoading;
+
+  /// The latest error encountered during mentorship operations.
   String? get error => _error;
   
   List<MentorshipRequest> _allRequests = [];
 
+  /// Sets the [ChatProvider] instance to be used for creating chat sessions.
   void setChatProvider(ChatProvider chatProvider) {
     _chatProvider = chatProvider;
   }
@@ -25,6 +34,7 @@ class MentorshipProvider with ChangeNotifier {
     _init();
   }
 
+  /// Initializes the provider by loading data from local storage or seeding for demo.
   Future<void> _init() async {
     _isLoading = true;
     notifyListeners();
@@ -50,11 +60,13 @@ class MentorshipProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Persists the current list of mentorship requests to local storage.
   Future<void> saveToLocal() async {
     final data = _allRequests.map((r) => r.toJson()).toList();
     await _persistence.saveData('mentorship_requests', data);
   }
 
+  /// Loads mentorship requests from local storage.
   Future<void> loadFromLocal() async {
     final data = await _persistence.getData('mentorship_requests');
     if (data != null && data is List) {
@@ -63,17 +75,21 @@ class MentorshipProvider with ChangeNotifier {
     }
   }
 
-  // Getters for specific filtered lists
+  /// Returns a list of requests that are currently in the 'pending' status.
   List<MentorshipRequest> get pendingRequests => 
       _allRequests.where((r) => r.status == MentorshipStatus.pending).toList();
 
+  /// Returns a list of mentees whose requests have been 'accepted'.
   List<MentorshipRequest> get acceptedMentees => 
       _allRequests.where((r) => r.status == MentorshipStatus.accepted).toList();
 
+  /// The count of pending mentorship requests.
   int get pendingCount => pendingRequests.length;
+
+  /// The count of accepted mentorship sessions.
   int get acceptedCount => acceptedMentees.length;
 
-  // Actions
+  /// Accepts a mentorship request by ID and creates a corresponding chat session.
   Future<void> acceptRequest(String id) async {
     _isLoading = true;
     _error = null;
@@ -96,6 +112,7 @@ class MentorshipProvider with ChangeNotifier {
     }
   }
 
+  /// Rejects a mentorship request by ID.
   Future<void> rejectRequest(String id) async {
     _isLoading = true;
     notifyListeners();
@@ -110,3 +127,4 @@ class MentorshipProvider with ChangeNotifier {
     }
   }
 }
+

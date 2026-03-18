@@ -1,0 +1,17 @@
+[33m7b52079[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m error present in it
+[33m7290b40[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: resolve syntax errors, missing imports, and cleanup MentorInboxPage
+[33m84015c1[m feat: advanced state management with ProxyProvider, persistence, and mentor-centric UI polish
+[33mbc9901b[m Polish: Project cleanup and full state management initialization
+[33m830de69[m Architecture: Implement centralized state management with Provider for real-time synchronization
+[33m71d1078[m Fix: Resolve syntax error and missing method in profile_page.dart
+[33m229c102[m Interactivity: Connect Mentor Dashboard buttons and implement Dashboard search
+[33mfa270c0[m Design: Redesign Alumni Profile as professional Mentor Dashboard
+[33m5da1f61[m Refactor: Organize features into Chat, Mentorship, and Common subfolders
+[33m76fea2b[m Feature: Implement real-time Mentorship Chat with ActiveChatScreen
+[33mc0fbabf[m Refactor: Remove Opportunities and Mentorship from Profile; Fix imports after folder reorganization
+[33ma3ae2a9[m Refactor: Re-architect pages into nav_tabs and features folders
+[33m71a929f[m Refactor: Remove Alumni Directory page and simplify bottom navigation to 4 items
+[33m5526234[m Refactor: Move screen widgets to pages directory and organize source structure
+[33ma3cebc4[m changes of requests
+[33m2b35232[m first
+[33mc8db856[m first commit

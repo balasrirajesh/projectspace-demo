@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/models/mentorship_model.dart';
 import 'package:alumini_screen/src/services/mentorship_service.dart';
 
+/// A card widget that displays details of a mentorship request.
+/// 
+/// It includes student info (name, branch, skills), the request reason,
+/// and action buttons (Accept/Reject) if the request is still pending.
+/// It also displays mock AI suggestion chips for quick responses.
 class MentorshipRequestCard extends StatelessWidget {
+  /// The mentorship request data to display.
   final MentorshipRequest request;
+
+  /// Callback when the 'Accept' button is tapped.
   final VoidCallback onAccept;
+
+  /// Callback when the 'Reject' or 'End Mentorship' button is tapped.
   final VoidCallback onReject;
 
   const MentorshipRequestCard({
@@ -169,6 +179,7 @@ class MentorshipRequestCard extends StatelessWidget {
     );
   }
 
+  /// Builds a colored badge representing the current status of the request.
   Widget _buildStatusBadge() {
     Color color;
     String text;
@@ -205,6 +216,7 @@ class MentorshipRequestCard extends StatelessWidget {
     );
   }
 
+  /// Builds a chip for displaying a student skill.
   Widget _buildSkillChip(String skill) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -219,6 +231,7 @@ class MentorshipRequestCard extends StatelessWidget {
     );
   }
 
+  /// Builds a chip for displaying a mentorship topic.
   Widget _buildTopicChip(String topic) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -233,3 +246,4 @@ class MentorshipRequestCard extends StatelessWidget {
     );
   }
 }
+

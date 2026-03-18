@@ -4,6 +4,10 @@ import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
+/// A page that displays a list of pending mentorship requests for an alumni mentor.
+/// 
+/// Mentors can review, accept, or reject incoming requests from students.
+/// Accepting a request enables chat functionality between the mentor and student.
 class AlumniRequestsPage extends StatefulWidget {
   const AlumniRequestsPage({super.key});
 
@@ -66,6 +70,9 @@ class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
     );
   }
 
+  /// Handles the acceptance or rejection of a mentorship request.
+  /// 
+  /// Updates the request status via [MentorshipProvider] and shows a confirmation [SnackBar].
   void _handleStatusChange(BuildContext context, MentorshipProvider provider, String id, MentorshipStatus status) {
     if (status == MentorshipStatus.accepted) {
       provider.acceptRequest(id);
@@ -85,3 +92,4 @@ class _AlumniRequestsPageState extends State<AlumniRequestsPage> {
     );
   }
 }
+

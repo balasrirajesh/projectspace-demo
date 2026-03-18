@@ -9,12 +9,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/pages/features/Auth/login_page.dart';
 
+/// Entry point of the application.
+/// 
+/// Initializes the application with multiple [ChangeNotifierProvider]s for state management.
+/// It also handles [DevicePreview] for web platforms to simulate different devices.
 void main() {
   final providers = [
     ChangeNotifierProvider(create: (_) => AuthProvider()),
     ChangeNotifierProvider(create: (_) => ChatProvider()),
     ChangeNotifierProvider(create: (_) => NotificationProvider()),
     ChangeNotifierProvider(create: (_) => UIProvider()),
+    
+    // MentorshipProvider depends on ChatProvider, so we use ProxyProvider to link them.
     ChangeNotifierProxyProvider<ChatProvider, MentorshipProvider>(
       create: (_) => MentorshipProvider(),
       update: (_, chat, mentorship) => mentorship!..setChatProvider(chat),
@@ -35,6 +41,7 @@ void main() {
     ));
   }
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

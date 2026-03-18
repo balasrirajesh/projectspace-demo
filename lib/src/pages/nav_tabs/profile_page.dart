@@ -14,9 +14,16 @@ import 'package:alumini_screen/src/pages/nav_tabs/mentor_inbox_page.dart';
 import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
 import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/pages/features/Mentorship/interactive_classroom_page.dart';
+import 'package:alumini_screen/src/pages/features/Mentorship/broadcast_streaming_page.dart';
 import 'package:alumini_screen/src/providers/auth_provider.dart';
 import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
+/// A comprehensive profile and management screen for the mentor.
+/// 
+/// This screen allows mentors to view their professional details, 
+/// manage their mentoring philosophy, access specialized management pages 
+/// (Expertise, Inquiries, etc.), and monitor active mentees.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -65,6 +72,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Builds the top header with a gradient background and user summary.
   Widget _buildCompactHeader(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top;
     return Container(
@@ -164,6 +172,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Helper to build small action icons in the header.
   Widget _buildHeaderAction(BuildContext context, IconData icon, String title) {
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(title: title, icon: icon, themeColor: const Color(0xFF7B66FF)))),
@@ -178,6 +187,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Builds a grid of cards providing access to different profile categories.
   Widget _buildGridDashboard(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
@@ -239,6 +249,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Displays the mentor's brief philosophy statement.
   Widget _buildMentoringBio() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -279,6 +290,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Builds the main action buttons: "Start Session" and "Manage Mentees".
   Widget _buildQuickActionButtons(BuildContext context) {
     return Row(
       children: [
@@ -304,15 +316,14 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Helper to build a styled primary or outlined button.
   Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, {bool isOutlined = false}) {
     return ElevatedButton.icon(
       onPressed: () {
         if (label == "Start Session") {
           _showStartSessionSheet(context);
         } else if (label == "Manage Mentees") {
-          // Navigation logic for Manage Mentees (e.g., navigating to Inbox)
-          // For now, since it's a tab, we can't easily switch without 
-          // state management, so we'll show a message or use Navigator
+          // Navigation logic for Manage Mentees
           Navigator.push(context, MaterialPageRoute(builder: (context) => const MentorInboxPage()));
         }
       },
@@ -331,6 +342,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Displays a list of mentees current being mentored.
   Widget _buildActiveMenteesSection(BuildContext context) {
     final mentorship = context.watch<MentorshipProvider>();
     final activeMentees = mentorship.acceptedMentees;
@@ -370,6 +382,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Builds an individual mentee card with navigation to their chat.
   Widget _buildMenteeCard(BuildContext context, MentorshipRequest mentee) {
     return InkWell(
       onTap: () => Navigator.push(
@@ -412,6 +425,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Shows a bottom sheet to configure and start a new live session.
   void _showStartSessionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -437,9 +451,19 @@ class ProfileScreen extends StatelessWidget {
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
-            _buildSessionOption(Icons.video_camera_front_outlined, "Video Webinar", "Host a session for up to 50 students."),
+            _buildSessionOption(
+              Icons.groups_outlined, 
+              "Interactive Class", 
+              "Real-time video with students. (WebRTC)",
+              onSelect: () => _navigateTo(context, "classroom"),
+            ),
             const SizedBox(height: 12),
-            _buildSessionOption(Icons.forum_outlined, "Group Q&A", "A quick text-based interaction."),
+            _buildSessionOption(
+              Icons.sensors, 
+              "Go Live (Broadcast)", 
+              "Stream to unlimited viewers. (RTMP)",
+              onSelect: () => _navigateTo(context, "broadcast"),
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -450,7 +474,7 @@ class ProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text("Go Live", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Cancel", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 16),
@@ -460,32 +484,47 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSessionOption(IconData icon, String title, String desc) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blueAccent),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(desc, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
+  /// Helper to build an option row in the "Start Session" sheet.
+  Widget _buildSessionOption(IconData icon, String title, String desc, {VoidCallback? onSelect}) {
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.blueAccent),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(desc, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
             ),
-          ),
-          Radio(value: true, groupValue: true, onChanged: (_) {}),
-        ],
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
 
+  void _navigateTo(BuildContext context, String type) {
+    Navigator.pop(context); // Close sheet
+    if (type == "classroom") {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const InteractiveClassroomPage(roomId: "Design-101", isMentor: true)));
+    } else {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastStreamingPage(isMentor: true, streamId: "mentor-live-1")));
+    }
+  }
+
+  /// Helper to build a dashboard card pointing to a target page.
   Widget _buildDashboardCard(BuildContext context, String title, String subtitle, IconData icon, Color color, Widget targetPage) {
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => targetPage)),
@@ -539,3 +578,4 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
+

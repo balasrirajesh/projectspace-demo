@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/pages/features/Common/detail_page.dart';
 import 'package:alumini_screen/src/pages/features/Mentorship/alumni_requests_page.dart';
-import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
+import 'package:alumini_screen/src/pages/features/Mentorship/interactive_classroom_page.dart';
+import 'package:alumini_screen/src/pages/features/Mentorship/broadcast_streaming_page.dart';
+// import 'package:alumini_screen/src/pages/nav_tabs/placeholder_page.dart';
 
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/providers/auth_provider.dart';
 import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
+/// The main dashboard screen for the alumni portal.
+/// 
+/// This screen provides a high-level overview of the user's mentoring activity,
+/// including stats, quick access tools, search functionality, and a timeline
+/// of recent activities.
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
 
@@ -16,6 +23,8 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   final TextEditingController _searchController = TextEditingController();
+  
+  /// The current search query for filtering dashboard content.
   String _searchQuery = "";
 
   @override
@@ -58,6 +67,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds the search bar that filters tools and activities.
   Widget _buildSearchField() {
     return Container(
       decoration: BoxDecoration(
@@ -90,6 +100,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds the top app bar with navigation to notification details.
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       expandedHeight: 70.0,
@@ -136,6 +147,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Displays a personalized greeting using [AuthProvider].
   Widget _buildGreeting() {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) => Column(
@@ -179,6 +191,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Helper to build consistent section headers.
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -190,6 +203,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds a grid of four key performance indicators (stats).
   Widget _buildStatsGrid(BuildContext context) {
     return Column(
       children: [
@@ -222,6 +236,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Helper to build an individual statistic card.
   Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
     return InkWell(
       onTap: () {
@@ -294,10 +309,13 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds a horizontal list of quick actions for mentors.
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
       {"title": "Post Job", "icon": Icons.add_circle_outline, "color": Colors.blueAccent},
       {"title": "Events", "icon": Icons.event_note, "color": Colors.indigoAccent},
+      {"title": "Watch Live", "icon": Icons.sensors, "color": Colors.redAccent},
+      {"title": "Join Class", "icon": Icons.groups_outlined, "color": Colors.purpleAccent},
       {"title": "Requests", "icon": Icons.pending_actions, "color": Colors.teal, "notif": true},
     ];
 
@@ -319,6 +337,10 @@ class _DashboardState extends State<Dashboard> {
               hasNotification: a['notif'] == true,
               onTap: a['title'] == "Requests" ? () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AlumniRequestsPage()));
+              } : a['title'] == "Join Class" ? () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const InteractiveClassroomPage(roomId: "Design-101", isMentor: false)));
+              } : a['title'] == "Watch Live" ? () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const BroadcastStreamingPage(isMentor: false, streamId: "mentor-live-1")));
               } : null,
             ),
           );
@@ -327,6 +349,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Helper to build a styled quick action button.
   Widget _buildActionButton(BuildContext context, String title, IconData icon, Color color, {VoidCallback? onTap, bool hasNotification = false}) {
     return Builder(
       builder: (context) => InkWell(
@@ -387,6 +410,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds a vertical list of recent mentoring activities.
   Widget _buildRecentActivityList() {
     final activities = [
       {"title": "Software Engineer Intern", "sub": "Google • Posted Yesterday", "icon": Icons.work, "color": Colors.blue},
@@ -421,6 +445,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds an individual activity card.
   Widget _buildActivityItem(String title, String subtitle, IconData icon, Color color) {
     return Card(
       elevation: 0,
@@ -489,3 +514,4 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 }
+

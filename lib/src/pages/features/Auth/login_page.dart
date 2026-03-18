@@ -4,6 +4,11 @@ import 'package:alumini_screen/src/main_layout.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/providers/auth_provider.dart';
 
+/// A screen that allows users to log into the application.
+/// 
+/// This screen provides fields for email and password. For this demo,
+/// it performs a mock authentication by extracting a name from the email
+/// and updating the [AuthProvider] profile before navigating to the [MainLayout].
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,6 +20,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  /// Performs mock login logic.
+  /// 
+  /// Extracts the user's name from their email address, updates the [AuthProvider],
+  /// and navigates the user to the main application layout.
   void _login() {
     // In a real app, you would authenticate here.
     String email = _emailController.text;
@@ -153,6 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Builds a stylized text field for user input.
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -186,3 +196,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

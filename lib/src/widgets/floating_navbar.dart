@@ -1,8 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+/// A custom floating navigation bar with a glassmorphism effect.
+/// 
+/// This widget displays a bottom-aligned bar with navigation items.
+/// It uses [BackdropFilter] for blurring and a semi-transparent color
+/// to achieve a premium "glass" look.
 class FloatingNavbar extends StatelessWidget {
+  /// The index of the currently selected navigation tab.
   final int selectedIndex;
+
+  /// Callback function triggered when a navigation item is tapped.
   final Function(int) onTap;
 
   const FloatingNavbar({
@@ -52,6 +60,7 @@ class FloatingNavbar extends StatelessWidget {
     );
   }
 
+  /// Builds an individual navigation item with animation and tap detection.
   Widget _buildNavItem(int index, IconData icon, String label) {
     bool isSelected = selectedIndex == index;
     return GestureDetector(
@@ -77,3 +86,4 @@ class FloatingNavbar extends StatelessWidget {
     );
   }
 }
+

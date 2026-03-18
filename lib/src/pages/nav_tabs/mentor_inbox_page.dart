@@ -5,6 +5,11 @@ import 'package:alumini_screen/src/widgets/mentorship_request_card.dart';
 import 'package:alumini_screen/src/pages/features/Chat/chat_detail_page.dart';
 import 'package:alumini_screen/src/providers/mentorship_provider.dart';
 
+/// A central hub for mentors to manage their incoming and active mentorships.
+/// 
+/// This page displays pending mentorship requests and active chat sessions 
+/// in a unified inbox view. It uses [CustomScrollView] for efficient 
+/// scrolling of mixed content types.
 class MentorInboxPage extends StatelessWidget {
   const MentorInboxPage({super.key});
 
@@ -81,6 +86,7 @@ class MentorInboxPage extends StatelessWidget {
     );
   }
 
+  /// Builds a section header with a title and a badge showing the count.
   Widget _buildHeader(String title, int count) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -109,6 +115,7 @@ class MentorInboxPage extends StatelessWidget {
     );
   }
 
+  /// Displays a friendly screen when there are no requests or chats.
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -145,6 +152,7 @@ class MentorInboxPage extends StatelessWidget {
     );
   }
 
+  /// Builds a simplified card for an active chat session.
   Widget _buildChatCard(BuildContext context, MentorshipRequest chat) {
     return Card(
       elevation: 0,
@@ -227,3 +235,4 @@ class MentorInboxPage extends StatelessWidget {
     );
   }
 }
+

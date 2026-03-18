@@ -1,10 +1,21 @@
+/// Defines the possible states of a mentorship request or session.
 enum MentorshipStatus { pending, accepted, rejected, ended }
 
+/// Represents a student (mentee) in the system.
 class Student {
+  /// Unique identifier for the student.
   final String id;
+
+  /// The full name of the student.
   final String name;
+
+  /// The academic department/branch of the student.
   final String branch;
+
+  /// The current academic year of the student (e.g., "3rd Year").
   final String year;
+
+  /// A list of skills or areas of interest the student has.
   final List<String> skills;
 
   Student({
@@ -15,6 +26,7 @@ class Student {
     required this.skills,
   });
 
+  /// Converts the [Student] instance to a JSON map.
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -23,6 +35,7 @@ class Student {
     'skills': skills,
   };
 
+  /// Creates a [Student] instance from a JSON map.
   factory Student.fromJson(Map<String, dynamic> json) => Student(
     id: json['id'] ?? '',
     name: json['name'] ?? '',
@@ -32,13 +45,27 @@ class Student {
   );
 }
 
+/// Represents a formal request for mentorship from a student to a mentor.
 class MentorshipRequest {
+  /// Unique identifier for the request.
   final String id;
+
+  /// The student who is requesting mentorship.
   final Student student;
+
+  /// The reason or motivation for seeking mentorship.
   final String reason;
+
+  /// Specific topics or areas the student wants help with.
   final List<String> topics;
+
+  /// Optional preferred schedule or time slots for mentorship.
   final String? preferredSchedule;
+
+  /// Current status of the request (defaults to [MentorshipStatus.pending]).
   final MentorshipStatus status;
+
+  /// The timestamp when the request was created.
   final DateTime createdAt;
 
   MentorshipRequest({
@@ -51,6 +78,7 @@ class MentorshipRequest {
     required this.createdAt,
   });
 
+  /// Returns a new instance of [MentorshipRequest] with updated fields.
   MentorshipRequest copyWith({
     MentorshipStatus? status,
   }) {
@@ -65,6 +93,7 @@ class MentorshipRequest {
     );
   }
 
+  /// Converts the [MentorshipRequest] instance to a JSON map.
   Map<String, dynamic> toJson() => {
     'id': id,
     'student': student.toJson(),
@@ -75,6 +104,7 @@ class MentorshipRequest {
     'createdAt': createdAt.toIso8601String(),
   };
 
+  /// Creates a [MentorshipRequest] instance from a JSON map.
   factory MentorshipRequest.fromJson(Map<String, dynamic> json) => MentorshipRequest(
     id: json['id'],
     student: Student.fromJson(json['student']),
@@ -85,3 +115,4 @@ class MentorshipRequest {
     createdAt: DateTime.parse(json['createdAt']),
   );
 }
+
