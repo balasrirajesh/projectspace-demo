@@ -13,7 +13,6 @@ pipeline {
         DOCKER_IMAGE = ""
         SONAR_PROJECT_KEY = "signaling-server"
         SONAR_HOST_URL = ""
-        SONAR_SCANNER_CMD = "sonar-scanner" // Fallback to global path
         FLUTTER_HOME = ""
     }
 
@@ -51,9 +50,8 @@ pipeline {
                     echo "🔍 Environment Diagnostics:"
                     echo "PATH: ${env.PATH}"
                     echo "FLUTTER_HOME: ${env.FLUTTER_HOME}"
-                    echo "SONAR_SCANNER_CMD: ${env.SONAR_SCANNER_CMD}"
                     bat "where flutter || echo 'Flutter not in PATH'"
-                    bat "where ${env.SONAR_SCANNER_CMD} || echo 'Sonar Scanner not found'"
+                    bat "docker --version || echo 'Docker not found'"
                 }
             }
         }
@@ -66,12 +64,18 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo "🚀 Running SonarQube Static Analysis using ${env.SONAR_SCANNER_CMD}..."
-                dir('signaling_server') {
-                    // Use a specific SonarQube environment name configured in Jenkins
-                    withSonarQubeEnv('SonarQube') {
-                        bat "${env.SONAR_SCANNER_CMD} -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.host.url=${env.SONAR_HOST_URL}"
-                    }
+                echo "🚀 Running SonarQube Static Analysis using Docker..."
+                script {
+                    // We map the signaling_server directory to /usr/src inside the container
+                    // We use host.docker.internal to reach the SonarQube server on the host
+                    bat """
+                        docker run --rm ^
+                        -e SONAR_HOST_URL="${env.SONAR_HOST_URL}" ^
+                        -v "%WORKSPACE%\\signaling_server:/usr/src" ^
+                        sonarsource/sonar-scanner-cli ^
+                        -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} ^
+                        -Dsonar.sources=.
+                    """
                 }
             }
         }
