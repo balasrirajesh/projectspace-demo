@@ -8,17 +8,17 @@ pipeline {
 
     environment {
         // --- Flutter Config ---
-        FLUTTER_HOME = "C:\\flutter" 
+        FLUTTER_HOME = "C:\\dev\\flutter" 
         PATH = "${FLUTTER_HOME}\\bin;${env.PATH}"
         
         // --- OpenShift & Registry Config ---
-        OC_PROJECT = "alumni-live"
-        OC_SERVER = "https://api.cluster-url:6443"
+        OC_PROJECT = "23mh1a05n6-dev"
+        OC_SERVER = "https://api.rm2.thpm.p1.openshiftapps.com:6443"
         
         // --- DevOps Toolchain Config ---
-        DOCKER_IMAGE = "your-docker-id/signaling-server:latest" // REPLACE WITH YOUR REGISTRY PATH
+        DOCKER_IMAGE = "rajesh200402/signaling-server:latest"
         SONAR_PROJECT_KEY = "signaling-server"
-        SONAR_HOST_URL = "http://localhost:9000" // Update to your SonarQube URL
+        SONAR_HOST_URL = "http://localhost:9000"
     }
 
     stages {
