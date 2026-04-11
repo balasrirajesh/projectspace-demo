@@ -11,8 +11,10 @@ C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\exception\U
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\controller\MentorshipController.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\controller\AuthController.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\repository\UserRepository.java
+C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\controller\CorsConfig.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\dto\DashboardSummaryDTO.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\entity\MentorshipRequest.java
+C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\controller\RootController.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\entity\User.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\repository\MentorshipRequestRepository.java
 C:\project space\alumini_screen\backend\src\main\java\com\alumni\app\service\MentorshipService.java

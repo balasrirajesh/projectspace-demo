@@ -1,34 +1,41 @@
-import 'package:alumini_screen/src/providers/auth_provider.dart';
-import 'package:alumini_screen/src/providers/mentorship_provider.dart';
-import 'package:alumini_screen/src/providers/chat_provider.dart';
-import 'package:alumini_screen/src/providers/notification_provider.dart';
-import 'package:alumini_screen/src/providers/ui_provider.dart';
-import 'package:device_preview/device_preview.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
-import 'package:alumini_screen/src/pages/features/Auth/login_page.dart';
+import 'package:provider/single_child_widget.dart';
+import 'package:device_preview/device_preview.dart';
+import 'package:alumini_screen/src/shared/providers/auth_provider.dart';
+import 'package:alumini_screen/src/shared/providers/mentorship_provider.dart';
+import 'package:alumini_screen/src/shared/providers/chat_provider.dart';
+import 'package:alumini_screen/src/shared/providers/notification_provider.dart';
+import 'package:alumini_screen/src/shared/providers/ui_provider.dart';
+import 'package:alumini_screen/src/features/auth/login_page.dart';
+import 'package:alumini_screen/src/core/theme/app_theme.dart';
 
 /// Entry point of the application.
-/// 
-/// Initializes the application with multiple [ChangeNotifierProvider]s for state management.
-/// It also handles [DevicePreview] for web platforms to simulate different devices.
-void main() {
-  final providers = [
+void main() async {
+  // Required before any async call in main()
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Resolve the backend server IP BEFORE the app renders, so login()
+  // always has the correct address ready.
+  await AuthProvider.resolveServerIp();
+
+  final List<SingleChildWidget> providers = [
     ChangeNotifierProvider(create: (_) => AuthProvider()),
     ChangeNotifierProvider(create: (_) => ChatProvider()),
     ChangeNotifierProvider(create: (_) => NotificationProvider()),
     ChangeNotifierProvider(create: (_) => UIProvider()),
-    
-    // MentorshipProvider depends on ChatProvider, so we use ProxyProvider to link them.
+
+    // MentorshipProvider depends on ChatProvider
     ChangeNotifierProxyProvider<ChatProvider, MentorshipProvider>(
       create: (_) => MentorshipProvider(),
-      update: (_, chat, mentorship) => mentorship!..setChatProvider(chat),
+      update: (_, chat, mentorship) => (mentorship ?? MentorshipProvider())..setChatProvider(chat),
     ),
   ];
 
   if (kIsWeb) {
     runApp(DevicePreview(
+      enabled: true,
       builder: (context) => MultiProvider(
         providers: providers,
         child: const MyApp(),
@@ -42,14 +49,18 @@ void main() {
   }
 }
 
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: LoginScreen(),
+      useInheritedMediaQuery: true,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
+      title: 'Alumni Connect',
+      theme: AppTheme.lightTheme,
+      home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

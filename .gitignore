@@ -51,3 +51,7 @@ app.*.map.json
 signaling_server/node_modules
 signaling_server/media
 signaling_server/package-lock.json
+
+# Environment & Docker secrets
+.env
+docker-compose.override.yml

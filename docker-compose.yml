@@ -1,0 +1,79 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────
+#  Alumni Connect – Docker Compose
+#
+#  Services:
+#    backend          Spring Boot REST + WebSocket API  → :8080
+#    signaling_server Node.js WebRTC + media streaming  → :3000 / :8000 / :1935
+# ──────────────────────────────────────────────────────────────
+
+services:
+
+  # ─────────────────────────────────────────
+  #  1. Spring Boot Backend
+  # ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alumni_backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_APPLICATION_NAME: alumni-app
+      SPRING_DATASOURCE_URL: jdbc:h2:mem:alumnidb
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
+      SPRING_H2_CONSOLE_ENABLED: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SERVER_PORT: "8080"
+      SERVER_ERROR_INCLUDE_MESSAGE: always
+      SERVER_ERROR_INCLUDE_BINDING_ERRORS: always
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - alumni_net
+
+  # ─────────────────────────────────────────
+  #  2. WebRTC Signaling + Media Server
+  # ─────────────────────────────────────────
+  signaling_server:
+    build:
+      context: ./signaling_server
+      dockerfile: Dockerfile
+    container_name: alumni_signaling
+    restart: unless-stopped
+    ports:
+      - "3000:3000"    # Socket.IO / signaling
+      - "8000:8000"    # NodeMediaServer HTTP (HLS/DASH)
+      - "1935:1935"    # RTMP live stream ingestion
+    environment:
+      PORT: "3000"
+      FFMPEG_PATH: /usr/bin/ffmpeg
+    volumes:
+      - signaling_media:/app/media   # persist HLS/DASH segments
+    networks:
+      - alumni_net
+
+# ──────────────────────────────────────────────────────────────
+#  Shared Network
+# ──────────────────────────────────────────────────────────────
+networks:
+  alumni_net:
+    driver: bridge
+
+# ──────────────────────────────────────────────────────────────
+#  Named Volumes
+# ──────────────────────────────────────────────────────────────
+volumes:
+  signaling_media:

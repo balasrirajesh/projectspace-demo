@@ -16,9 +16,12 @@ com\alumni\app\service\MentorshipService.class
 com\alumni\app\controller\ChatController.class
 com\alumni\app\exception\InvalidStatusTransitionException.class
 com\alumni\app\dto\MentorshipRequestDTO$MentorshipRequestDTOBuilder.class
+com\alumni\app\controller\CorsConfig.class
 com\alumni\app\exception\GlobalExceptionHandler.class
 com\alumni\app\service\ChatService.class
 com\alumni\app\controller\AuthController.class
+com\alumni\app\controller\CorsConfig$1.class
+com\alumni\app\controller\RootController.class
 com\alumni\app\repository\ChatMessageRepository.class
 com\alumni\app\exception\UnauthorizedMentorException.class
 com\alumni\app\dto\DashboardSummaryDTO$DashboardSummaryDTOBuilder.class

@@ -3,6 +3,7 @@ const NodeMediaServer = require('node-media-server');
 const config = {
   rtmp: {
     port: 1935,
+    host: '0.0.0.0',
     chunk_size: 60000,
     gop_cache: true,
     ping: 30,
@@ -10,11 +11,12 @@ const config = {
   },
   http: {
     port: 8000,
+    host: '0.0.0.0',
     mediaroot: './media',
     allow_origin: '*'
   },
   trans: {
-    ffmpeg: 'C:\\ffmpeg\\bin\\ffmpeg.exe', // User needs to have ffmpeg installed
+    ffmpeg: process.env.FFMPEG_PATH || 'C:\\ffmpeg\\bin\\ffmpeg.exe', // Override via FFMPEG_PATH env var
     tasks: [
       {
         app: 'live',

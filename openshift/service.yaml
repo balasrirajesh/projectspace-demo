@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: signaling-server
+  labels:
+    app: signaling-server
+spec:
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: signaling-server
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: signaling-server
+  labels:
+    app: signaling-server
+spec:
+  to:
+    kind: Service
+    name: signaling-server
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge # Enables HTTPS
+    insecureEdgeTerminationPolicy: Redirect

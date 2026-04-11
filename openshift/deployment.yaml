@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signaling-server
+  labels:
+    app: signaling-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: signaling-server
+  template:
+    metadata:
+      labels:
+        app: signaling-server
+    spec:
+      containers:
+      - name: signaling-server
+        image: signaling-server:latest # This will be updated by oc start-build
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PORT
+          value: "3000"
+        - name: START_MEDIA_SERVER
+          value: "false" # Media server requires more config/ports, keep false for basic P2P
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+      # OpenShift compatibility: run as non-root
+      securityContext:
+        runAsNonRoot: true

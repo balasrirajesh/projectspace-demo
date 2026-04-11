@@ -94,9 +94,13 @@ public class MentorshipService {
     }
 
     private MentorshipRequestDTO mapToDTO(MentorshipRequest request) {
+        if (request == null) return null;
+        
+        String studentName = (request.getStudent() != null) ? request.getStudent().getName() : "Unknown Student";
+        
         return MentorshipRequestDTO.builder()
                 .id(request.getId())
-                .studentName(request.getStudent().getName())
+                .studentName(studentName)
                 .message(request.getReason())
                 .status(request.getStatus())
                 .createdAt(request.getCreatedAt())
