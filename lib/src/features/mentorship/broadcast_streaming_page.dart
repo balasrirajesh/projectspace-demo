@@ -420,7 +420,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage> with Ti
       top: 150,
       child: Column(
         children: [
-          _buildSideButton(Icons.cameraswitch, "Flip", onPressed: _webrtcService.switchCamera),
+          _buildSideButton(Icons.cameraswitch, "Flip", onPressed: _classroomService.switchCamera),
           _buildSideButton(Icons.auto_fix_high, "Effects", onPressed: () {}),
           _buildSideButton(Icons.lightbulb_outline, "Light", onPressed: () {}),
           _buildSideButton(_isMuted ? Icons.mic_off : Icons.mic, "Mic", 

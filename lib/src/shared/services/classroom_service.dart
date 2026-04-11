@@ -192,6 +192,12 @@ class ClassroomService {
   void toggleAudio(bool enabled) => localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
   void toggleVideo(bool enabled) => localStream?.getVideoTracks().forEach((t) => t.enabled = enabled);
 
+  Future<void> switchCamera() async {
+    if (localStream != null && localStream!.getVideoTracks().isNotEmpty) {
+      await Helper.switchCamera(localStream!.getVideoTracks()[0]);
+    }
+  }
+
   Future<void> dispose() async {
     localStream?.getTracks().forEach((t) => t.stop());
     await localStream?.dispose();
