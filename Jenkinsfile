@@ -50,6 +50,7 @@ pipeline {
                             bat """
                                 docker run --rm ^
                                 -e SONAR_HOST_URL="${env.SONAR_HOST_URL}" ^
+                                -e SONAR_TOKEN="${env.SONAR_TOKEN}" ^
                                 -v "%WORKSPACE%\\signaling_server:/usr/src" ^
                                 sonarsource/sonar-scanner-cli ^
                                 -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} ^
