@@ -85,14 +85,17 @@ pipeline {
 
                         stage('Deploy to OpenShift') {
                             echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
+                            // Use absolute path to oc.exe if defined, otherwise fallback to global command
+                            def ocCmd = env.OC_PATH ?: 'oc'
+                            
                             withCredentials([string(credentialsId: 'oc-token', variable: 'TOKEN')]) {
-                                bat "oc login ${env.OC_SERVER} --token=${TOKEN} --insecure-skip-tls-verify"
-                                bat "oc project ${env.OC_PROJECT}"
-                                bat 'oc apply -f openshift/mongodb.yaml'
-                                bat 'oc apply -f openshift/deployment.yaml'
-                                bat "oc set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
-                                bat 'oc apply -f openshift/service.yaml'
-                                bat 'oc rollout status deployment/signaling-server'
+                                bat "${ocCmd} login ${env.OC_SERVER} --token=${TOKEN} --insecure-skip-tls-verify"
+                                bat "${ocCmd} project ${env.OC_PROJECT}"
+                                bat "${ocCmd} apply -f openshift/mongodb.yaml"
+                                bat "${ocCmd} apply -f openshift/deployment.yaml"
+                                bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
+                                bat "${ocCmd} apply -f openshift/service.yaml"
+                                bat "${ocCmd} rollout status deployment/signaling-server"
                             }
                         }
                     }
