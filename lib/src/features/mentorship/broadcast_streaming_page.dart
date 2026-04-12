@@ -157,7 +157,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage> with Ti
   void _postComment() {
     if (_commentController.text.isNotEmpty) {
       final auth = context.read<AuthProvider>();
-      _classroomService.sendMessage(_commentController.text);
+      _classroomService.sendMessage(_commentController.text, auth.userName);
       setState(() {
         _comments.add({
           'user': auth.userName,

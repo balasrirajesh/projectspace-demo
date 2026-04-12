@@ -152,7 +152,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   void _sendMessage() {
     if (_chatController.text.isNotEmpty) {
-      _classroomService.sendMessage(_chatController.text);
+      final auth = context.read<AuthProvider>();
+      _classroomService.sendMessage(_chatController.text, auth.userName);
       _chatController.clear();
     }
   }
@@ -595,7 +596,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                   icon: Icons.front_hand,
                   active: false,
                   onPressed: () {
-                    _classroomService.raiseHand();
+                    final auth = context.read<AuthProvider>();
+                    _classroomService.raiseHand(auth.userName);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text("You raised your hand! ✋"),
