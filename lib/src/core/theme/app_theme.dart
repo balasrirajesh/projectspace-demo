@@ -79,7 +79,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Colors.grey.withValues(alpha: 0.08), width: 1),
+          side: BorderSide(color: Colors.grey.withOpacity(0.08), width: 1),
         ),
       ),
       
@@ -105,11 +105,11 @@ class AppTheme {
         contentPadding: const EdgeInsets.all(20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1.5),
+          borderSide: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1.5),
+          borderSide: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

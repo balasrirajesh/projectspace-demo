@@ -82,8 +82,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withValues(alpha: 0.15),
-                    AppColors.primary.withValues(alpha: 0),
+                    AppColors.primary.withOpacity(0.15),
+                    AppColors.primary.withOpacity(0),
                   ],
                 ),
               ),
@@ -99,8 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.accent.withValues(alpha: 0.1),
-                    AppColors.accent.withValues(alpha: 0),
+                    AppColors.accent.withOpacity(0.1),
+                    AppColors.accent.withOpacity(0),
                   ],
                 ),
               ),
@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
+                            color: AppColors.primary.withOpacity(0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -200,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.2),
+                              color: AppColors.primary.withOpacity(0.2),
                               blurRadius: 15,
                               offset: const Offset(0, 8),
                             ),
@@ -228,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+                        side: BorderSide(color: AppColors.primary.withOpacity(0.2)),
                       ),
                       child: const Text("Continue as Guest"),
                     ).animate().fadeIn(delay: 800.ms),

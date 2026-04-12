@@ -6,6 +6,7 @@ import 'package:alumini_screen/src/shared/services/classroom_service.dart';
 import 'package:alumini_screen/src/shared/providers/auth_provider.dart';
 import 'package:alumini_screen/src/shared/providers/notification_provider.dart';
 import 'dart:developer' as dev;
+import 'dart:ui';
 
 class InteractiveClassroomPage extends StatefulWidget {
   final String roomId;
@@ -161,36 +162,81 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.black.withOpacity(0.5)),
+          ),
+        ),
+        title: Row(
           children: [
-            Text("Class: ${widget.roomId}", style: const TextStyle(color: Colors.white, fontSize: 16)),
-            Row(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.sensors, color: Colors.redAccent, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _connectionState, 
-                  style: TextStyle(
-                    color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green : Colors.orange, 
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold
-                  )
+                Text("Room: ${widget.roomId}", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green : Colors.orange,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _connectionState.toUpperCase(), 
+                      style: const TextStyle(
+                        color: Colors.white70, 
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      )
+                    ),
+                  ],
                 ),
-                if (_connectionState == "Connecting...") ...[
-                  const SizedBox(width: 8),
-                  Text("(${AuthProvider.serverIp})", style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                ]
               ],
             ),
           ],
         ),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          _buildParticipantCount(),
+          const SizedBox(width: 8),
           IconButton(
-            icon: Icon(_showChat ? Icons.chat_bubble : Icons.chat_bubble_outline),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _showChat ? Colors.blueAccent.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _showChat ? Icons.chat_bubble : Icons.chat_bubble_outline, 
+                color: _showChat ? Colors.blueAccent : Colors.white,
+                size: 20
+              ),
+            ),
             onPressed: () => setState(() => _showChat = !_showChat),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
@@ -217,16 +263,40 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     );
   }
 
+  Widget _buildParticipantCount() {
+    final count = 1 + _remoteRenderers.length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.people_outline, color: Colors.white70, size: 14),
+          const SizedBox(width: 4),
+          Text("$count", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildResponsiveChat(BoxConstraints constraints) {
-    double chatWidth = constraints.maxWidth > 800 ? 350 : constraints.maxWidth * 0.4;
-    if (constraints.maxWidth < 600) chatWidth = constraints.maxWidth; // Full width on very small
+    double chatWidth = constraints.maxWidth > 900 ? 380 : constraints.maxWidth * 0.45;
+    if (constraints.maxWidth < 600) chatWidth = constraints.maxWidth;
 
     return Positioned(
       right: 0,
       top: 0,
-      bottom: 80, // Above controls
+      bottom: 85,
       width: chatWidth,
-      child: _buildChatOverlay(),
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: _buildChatOverlay(),
+        ),
+      ),
     );
   }
   Widget _buildVideoGrid(bool isSmallScreen) {
@@ -249,77 +319,120 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     ];
 
     return GridView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: isSmallScreen ? 1 : 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: isSmallScreen ? 1.4 : 1.1,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: isSmallScreen ? 1.3 : 1.2,
       ),
       itemCount: allParticipants.length,
       itemBuilder: (context, index) {
         final p = allParticipants[index];
         final isHost = p['isMentor'] == true;
+        final isLocal = p['id'] == 'local';
         
         return Container(
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isHost ? Colors.amber.withOpacity(0.5) : Colors.white.withOpacity(0.05),
+              width: isHost ? 2 : 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
+                color: isHost ? Colors.amber.withOpacity(0.1) : Colors.black.withOpacity(0.4),
+                blurRadius: 15,
+                spreadRadius: 2,
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             child: Stack(
               children: [
                 RTCVideoView(
                   p['renderer'] as RTCVideoRenderer,
                   objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                  mirror: p['id'] == 'local',
+                  mirror: isLocal,
                 ),
-                // Overlay Name Tag
-                Positioned(
-                  bottom: 12,
-                  left: 12,
+                // Gradient Overlay for better legibility
+                Positioned.fill(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isHost) ...[
-                          const Icon(Icons.star, color: Colors.amber, size: 14),
-                          const SizedBox(width: 4),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.2),
+                          Colors.transparent,
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.6),
                         ],
-                        Text(
-                          p['name'] as String,
-                          style: const TextStyle(
-                            color: Colors.white, 
-                            fontSize: 12, 
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                        stops: const [0.0, 0.2, 0.8, 1.0],
+                      ),
                     ),
                   ),
                 ),
-                // Audio Status Indicator
-                const Positioned(
-                  top: 12,
-                  right: 12,
-                  child: CircleAvatar(
-                    radius: 12,
-                    backgroundColor: Colors.black45,
-                    child: Icon(Icons.mic, color: Colors.green, size: 14),
+                // Name Tag with Role
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  child: ClipRRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isHost) ...[
+                              const Icon(Icons.verified, color: Colors.blueAccent, size: 16),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              p['name'] as String,
+                              style: const TextStyle(
+                                color: Colors.white, 
+                                fontSize: 13, 
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Status Icons
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Row(
+                    children: [
+                      if (isHost)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text("MENTOR", style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w900)),
+                        ),
+                      const SizedBox(width: 8),
+                      const CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.black45,
+                        child: Icon(Icons.mic, color: Colors.greenAccent, size: 16),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -333,39 +446,78 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   Widget _buildChatOverlay() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black87,
-        border: Border(left: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        color: Colors.black.withOpacity(0.6),
+        border: Border(left: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5)),
       ),
       child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: Text("Live Chat", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Icon(Icons.chat_bubble_rounded, color: Colors.blueAccent, size: 20),
+                const SizedBox(width: 12),
+                const Text(
+                  "CLASSROOM CHAT", 
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.2)
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                  onPressed: () => setState(() => _showChat = false),
+                )
+              ],
             ),
-            const Divider(color: Colors.white24),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(msg['from']!, style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                        Text(msg['text']!, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                      ],
-                    ),
-                  );
-                },
-              ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                final isMe = msg['from'] == context.read<AuthProvider>().userName;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Column(
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isMe) Text(msg['from']!, style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 10)),
+                          const SizedBox(width: 8),
+                          const Text("Just now", style: TextStyle(color: Colors.white24, fontSize: 9)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blueAccent : Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: Radius.circular(isMe ? 16 : 0),
+                            bottomRight: Radius.circular(isMe ? 0 : 16),
+                          ),
+                        ),
+                        child: Text(
+                          msg['text']!, 
+                          style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3)
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            _buildChatInput(),
-          ],
-        ),
-      );
+          ),
+          _buildChatInput(),
+        ],
+      ),
+    );
   }
 
   Widget _buildChatInput() {
@@ -397,62 +549,118 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   Widget _buildControls() {
     return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          boxShadow: [BoxShadow(color: Colors.black, blurRadius: 10)],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildControlBtn(
-              icon: _isMuted ? Icons.mic_off : Icons.mic,
-              color: _isMuted ? Colors.red : Colors.grey[800]!,
-              onPressed: () {
-                setState(() => _isMuted = !_isMuted);
-                _classroomService.toggleAudio(!_isMuted);
-              },
+      bottom: 24,
+      left: 24,
+      right: 24,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            _buildControlBtn(
-              icon: Icons.call_end,
-              color: Colors.red,
-              onPressed: () => Navigator.pop(context),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildControlBtn(
+                  icon: _isMuted ? Icons.mic_off : Icons.mic,
+                  active: !_isMuted,
+                  activeColor: Colors.blueAccent,
+                  onPressed: () {
+                    setState(() => _isMuted = !_isMuted);
+                    _classroomService.toggleAudio(!_isMuted);
+                  },
+                ),
+                _buildControlBtn(
+                  icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
+                  active: !_isCameraOff,
+                  activeColor: Colors.blueAccent,
+                  onPressed: () {
+                    setState(() => _isCameraOff = !_isCameraOff);
+                    _classroomService.toggleVideo(!_isCameraOff);
+                  },
+                ),
+                _buildControlBtn(
+                  icon: Icons.front_hand,
+                  active: false,
+                  onPressed: () {
+                    _classroomService.raiseHand();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text("You raised your hand! ✋"),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        backgroundColor: Colors.blueAccent,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.redAccent.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.call_end, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text("LEAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            _buildControlBtn(
-              icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
-              color: _isCameraOff ? Colors.red : Colors.grey[800]!,
-              onPressed: () {
-                setState(() => _isCameraOff = !_isCameraOff);
-                _classroomService.toggleVideo(!_isCameraOff);
-              },
-            ),
-            _buildControlBtn(
-              icon: Icons.front_hand,
-              color: Colors.grey[800]!,
-              onPressed: () {
-                _classroomService.raiseHand();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("You raised your hand! ✋")),
-                );
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildControlBtn({required IconData icon, required Color color, required VoidCallback onPressed}) {
-    return CircleAvatar(
-      radius: 24,
-      backgroundColor: color,
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 20),
-        onPressed: onPressed,
+  Widget _buildControlBtn({
+    required IconData icon, 
+    required bool active, 
+    required VoidCallback onPressed,
+    Color? activeColor,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(25),
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: active ? (activeColor ?? Colors.greenAccent) : Colors.white.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon, 
+          color: active ? Colors.white : Colors.white70, 
+          size: 22
+        ),
       ),
     );
   }

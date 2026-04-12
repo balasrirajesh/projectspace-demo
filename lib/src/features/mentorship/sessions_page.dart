@@ -167,7 +167,7 @@ class SessionsPage extends StatelessWidget {
           border: isLive ? Border.all(color: AppColors.primary, width: 2) : null,
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.04),
+              color: AppColors.primary.withOpacity(0.04),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -180,7 +180,7 @@ class SessionsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (isLive ? Colors.red : AppColors.primary).withValues(alpha: 0.1),
+                    color: (isLive ? Colors.red : AppColors.primary).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(icon, color: isLive ? Colors.red : AppColors.primary),
@@ -199,7 +199,7 @@ class SessionsPage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: Colors.red.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text("LIVE", style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -273,7 +273,7 @@ class SessionsPage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.event_busy_rounded, size: 64, color: AppColors.textLight.withValues(alpha: 0.2)),
+          Icon(Icons.event_busy_rounded, size: 64, color: AppColors.textLight.withOpacity(0.2)),
           const SizedBox(height: 16),
           Text(msg, style: const TextStyle(color: AppColors.textSecondary)),
         ],

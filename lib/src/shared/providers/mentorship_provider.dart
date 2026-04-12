@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/shared/models/mentorship_model.dart';
 import 'package:alumini_screen/src/shared/services/mentorship_service.dart';
 import 'package:alumini_screen/src/shared/services/persistence_service.dart';
+import 'package:alumini_screen/src/shared/services/classroom_service.dart';
+import 'package:alumini_screen/src/shared/providers/auth_provider.dart';
 import 'package:alumini_screen/src/shared/providers/chat_provider.dart';
 
 /// Manages the state of mentorship requests and sessions.
-/// 
-/// This provider handles loading requests from the service, filtering them by status,
-/// and performing actions like accepting or rejecting requests. It also stays
-/// synchronized with the [ChatProvider] to create sessions when requests are accepted.
 class MentorshipProvider with ChangeNotifier {
   final MentorshipService _service = MentorshipService();
   final PersistenceService _persistence = PersistenceService();
+  final ClassroomService _classroomService = ClassroomService();
   ChatProvider? _chatProvider;
   StreamSubscription? _subscription;
 
@@ -26,22 +25,7 @@ class MentorshipProvider with ChangeNotifier {
   String? get error => _error;
   
   List<MentorshipRequest> _allRequests = [];
-  List<Map<String, dynamic>> _webinars = [
-    {
-      'id': 'w1',
-      'title': 'Advanced Flutter UI Patterns',
-      'startTime': 'Today, 6:00 PM',
-      'isLive': false,
-      'attendees': 45,
-    },
-    {
-      'id': 'w2',
-      'title': 'Career Transitions in Tech',
-      'startTime': 'Live Now',
-      'isLive': true,
-      'attendees': 120,
-    }
-  ];
+  List<Map<String, dynamic>> _webinars = [];
 
   /// Returns a list of all mentorship requests.
   List<MentorshipRequest> get allRequests => _allRequests;
@@ -63,15 +47,32 @@ class MentorshipProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Try to load from local first
+    // 1. Sync Room List via Signaling Server
+    _classroomService.onRoomListUpdate = (roomData) {
+      _webinars = roomData.map((r) => {
+        'id': r['id'],
+        'title': r['title'],
+        'startTime': r['startTime'],
+        'isLive': r['isLive'],
+        'attendees': r['attendees'],
+      }).toList();
+      notifyListeners();
+    };
+
+    // Connect to signaling server to get updates (Student view)
+    _classroomService.joinRoom(
+      serverUrl: AuthProvider.getSignalingUrl(),
+      roomId: 'global-lobby',
+      userName: 'Discovery-Agent',
+      role: ClassroomRole.student,
+    );
+
+    // 2. Load mentorship requests
     await loadFromLocal();
-    
-    // Always sync with service to get latest from backend
     await _service.seedData();
     _allRequests = _service.getRequests();
     await saveToLocal();
     
-    // Listen to service updates
     _subscription = _service.requestsStream.listen((updatedRequests) {
       _allRequests = updatedRequests;
       saveToLocal();
@@ -121,7 +122,6 @@ class MentorshipProvider with ChangeNotifier {
       final request = _allRequests.firstWhere((r) => r.id == id);
       await _service.updateRequestStatus(id, MentorshipStatus.accepted);
       
-      // Link with ChatProvider
       if (_chatProvider != null) {
         _chatProvider!.createSession(request.student);
       }
@@ -152,19 +152,14 @@ class MentorshipProvider with ChangeNotifier {
 
   /// Starts a new webinar session.
   void startNewWebinar(String title) {
-    _webinars.insert(0, {
-      'id': 'w${DateTime.now().millisecondsSinceEpoch}',
-      'title': title,
-      'startTime': 'Started Just Now',
-      'isLive': true,
-      'attendees': 0,
-    });
+    // This will emit to the server via joinRoom when the mentor actually enters the page
     notifyListeners();
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
+    _classroomService.dispose();
     super.dispose();
   }
 }

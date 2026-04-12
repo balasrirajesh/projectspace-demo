@@ -114,7 +114,7 @@ class SkillsPage extends StatelessWidget {
                 children: [
                   Text(skill, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(width: 4),
-                  Icon(Icons.check_circle, size: 12, color: textColor.withValues(alpha: 0.5)),
+                  Icon(Icons.check_circle, size: 12, color: textColor.withOpacity(0.5)),
                 ],
               ),
             )).toList(),
@@ -128,9 +128,9 @@ class SkillsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.05),
+        color: Colors.blue.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.blue.withOpacity(0.1)),
       ),
       child: Row(
         children: [

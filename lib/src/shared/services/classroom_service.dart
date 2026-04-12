@@ -24,6 +24,7 @@ class ClassroomService {
   Function(String from)? onHandRaised;
   Function(String message)? onError;
   Function()? onConnected;
+  Function(List<dynamic> rooms)? onRoomListUpdate;
 
   // Standard WebRTC Configuration using Google STUN
   final Map<String, dynamic> _rtcConfig = {
@@ -39,6 +40,7 @@ class ClassroomService {
     required String roomId,
     required String userName,
     required ClassroomRole role,
+    String? title,
   }) async {
     _roomId = roomId;
     _role = role;
@@ -52,8 +54,9 @@ class ClassroomService {
 
       // 2. Setup Socket.io
       _socket = io.io(serverUrl, io.OptionBuilder()
-          .setTransports(['websocket']) // Use websocket for faster signaling
-          .disableAutoConnect()
+          .setTransports(['websocket']) 
+          .setQuery({'userName': userName})
+          .enableAutoConnect()
           .build());
 
       // 3. Register Events
@@ -63,25 +66,32 @@ class ClassroomService {
           'roomId': _roomId,
           'role': _role == ClassroomRole.mentor ? 'mentor' : 'student',
           'userName': userName,
+          'title': title ?? roomId,
         });
         onConnected?.call();
       });
 
-      _socket!.onConnectError((err) => onError?.call('Server unavailable: $err'));
+      _socket!.onConnectError((err) => dev.log('❌ Connection Error: $err'));
+      _socket!.onError((err) => onError?.call('Socket Error: $err'));
+
+      // Listen for global room updates
+      _socket!.on('room-list', (data) {
+        onRoomListUpdate?.call(data);
+      });
 
       // --- Signaling Handshake ---
       
       // When a new student joins, the Mentor creates an OFFER
       _socket!.on('user-joined', (studentId) async {
         if (_role == ClassroomRole.mentor) {
-          await _createOffer(studentId);
+          await _createOffer(studentId, userName);
         }
       });
 
       // When an OFFER arrives (usually for Students)
       _socket!.on('offer', (data) async {
         if (_role == ClassroomRole.student) {
-          await _handleOffer(data);
+          await _handleOffer(data, userName);
         }
       });
 
@@ -96,11 +106,11 @@ class ClassroomService {
       _socket!.on('mentor-left', (_) => onError?.call('Mentor has ended the session.'));
 
       // Chat & Engagement
-      _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'], data['text']));
-      _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName']));
+      _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
+      _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
 
       // 4. Connect
-      _socket!.connect();
+      if (!_socket!.connected) _socket!.connect();
     } catch (e) {
       onError?.call('Critical Error: $e');
     }
@@ -108,7 +118,7 @@ class ClassroomService {
 
   // --- WebRTC Logic ---
 
-  Future<RTCPeerConnection> _createPeerConnection(String remoteId) async {
+  Future<RTCPeerConnection> _createPeerConnection(String remoteId, String localName) async {
     RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
     peerConnections[remoteId] = pc;
 
@@ -120,6 +130,7 @@ class ClassroomService {
       _socket!.emit('ice-candidate', {
         'target': remoteId,
         'candidate': candidate.toMap(),
+        'fromName': localName,
       });
     };
 
@@ -134,20 +145,21 @@ class ClassroomService {
     return pc;
   }
 
-  Future<void> _createOffer(String studentId) async {
-    final pc = await _createPeerConnection(studentId);
+  Future<void> _createOffer(String studentId, String localName) async {
+    final pc = await _createPeerConnection(studentId, localName);
     RTCSessionDescription offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
     _socket!.emit('offer', {
       'target': studentId,
       'offer': offer.toMap(),
+      'fromName': localName,
     });
   }
 
-  Future<void> _handleOffer(dynamic data) async {
+  Future<void> _handleOffer(dynamic data, String localName) async {
     final String from = data['from'].toString();
-    final pc = await _createPeerConnection(from);
+    final pc = await _createPeerConnection(from, localName);
     
     await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
     
@@ -157,6 +169,7 @@ class ClassroomService {
     _socket!.emit('answer', {
       'target': from,
       'answer': answer.toMap(),
+      'fromName': localName,
     });
   }
 
@@ -186,8 +199,11 @@ class ClassroomService {
   }
 
   // Messaging Helpers
-  void sendMessage(String text) => _socket?.emit('send-message', {'text': text, 'roomId': _roomId});
-  void raiseHand() => _socket?.emit('raise-hand', {'roomId': _roomId});
+  void sendMessage(String text, String userName) => 
+    _socket?.emit('send-message', {'text': text, 'roomId': _roomId, 'userName': userName});
+    
+  void raiseHand(String userName) => 
+    _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName});
 
   void toggleAudio(bool enabled) => localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
   void toggleVideo(bool enabled) => localStream?.getVideoTracks().forEach((t) => t.enabled = enabled);
@@ -205,5 +221,6 @@ class ClassroomService {
       pc.dispose();
     }
     _socket?.dispose();
+    _socket = null;
   }
 }

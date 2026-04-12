@@ -13,7 +13,10 @@ const chatRoutes = require('./routes/chatRoutes');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
-  cors: { origin: "*" }
+  cors: { origin: "*" },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling']
 });
 
 // Middleware
@@ -49,76 +52,95 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Only run Media Server locally if FFMPEG is available or explicitly requested
-// For Render free tier, we focus strictly on P2P signaling to stay within limits
-if (process.env.START_MEDIA_SERVER === 'true') {
-  try {
-    const nms = require('./media_server');
-    nms.run();
-    console.log('📺 Node Media Server started');
-  } catch (err) {
-    console.error('⚠️ Could not start Media Server:', err.message);
-  }
-}
-
-// Track rooms: { roomId: { mentorSocketId, students: [socketId] } }
+// Track rooms: { roomId: { mentorSocketId, title, students: [socketId], startTime } }
 const rooms = {};
+
+const broadcastRoomList = () => {
+  const roomList = Object.keys(rooms).map(id => ({
+    id,
+    title: rooms[id].title || id,
+    isLive: true,
+    attendees: rooms[id].students.length,
+    startTime: rooms[id].startTime
+  }));
+  io.emit('room-list', roomList);
+};
 
 io.on('connection', (socket) => {
   console.log(`[CONNECT] User: ${socket.id}`);
 
-  // Join Room: { roomId, role: 'mentor' | 'student' }
+  // Send initial room list to new connection
+  const initialRooms = Object.keys(rooms).map(id => ({
+    id,
+    title: rooms[id].title || id,
+    isLive: true,
+    attendees: rooms[id].students.length,
+    startTime: rooms[id].startTime
+  }));
+  socket.emit('room-list', initialRooms);
+
+  // Join Room: { roomId, role: 'mentor' | 'student', title }
   socket.on('join-room', (data) => {
     const roomId = typeof data === 'string' ? data : data.roomId;
     const role   = typeof data === 'object' ? data.role : 'mentor';
+    const title  = typeof data === 'object' ? data.title : roomId;
 
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.role   = role;
 
     if (!rooms[roomId]) {
-      rooms[roomId] = { mentorSocketId: null, students: [] };
+      rooms[roomId] = { 
+        mentorSocketId: null, 
+        students: [], 
+        title: title,
+        startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
     }
 
     if (role === 'mentor') {
       rooms[roomId].mentorSocketId = socket.id;
-      console.log(`[ROOM] Mentor (${socket.id}) created: ${roomId}`);
+      rooms[roomId].title = title;
+      console.log(`[ROOM] Mentor (${socket.id}) created: ${roomId} (${title})`);
     } else {
-      if (!rooms[roomId].mentorSocketId) {
-        socket.emit('error', { message: 'Mentor not in room yet' });
-        return;
-      }
       if (!rooms[roomId].students.includes(socket.id)) {
         rooms[roomId].students.push(socket.id);
       }
       console.log(`[ROOM] Student (${socket.id}) joined: ${roomId}`);
 
-      // Notify mentor that a student joined
-      io.to(rooms[roomId].mentorSocketId).emit('user-joined', socket.id);
+      // Notify mentor that a student joined (if mentor exists)
+      if (rooms[roomId].mentorSocketId) {
+        io.to(rooms[roomId].mentorSocketId).emit('user-joined', socket.id);
+      }
     }
+    
+    broadcastRoomList();
   });
 
-  // Relay Offer: { target, offer }
+  // Relay Offer: { target, offer, fromName }
   socket.on('offer', (data) => {
     io.to(data.target).emit('offer', { 
       offer: data.offer, 
-      from: socket.id 
+      from: socket.id,
+      fromName: data.fromName
     });
   });
 
-  // Relay Answer: { target, answer }
+  // Relay Answer: { target, answer, fromName }
   socket.on('answer', (data) => {
     io.to(data.target).emit('answer', { 
       answer: data.answer, 
-      from: socket.id 
+      from: socket.id,
+      fromName: data.fromName
     });
   });
 
-  // Relay ICE Candidate: { target, candidate }
+  // Relay ICE Candidate: { target, candidate, fromName }
   socket.on('ice-candidate', (data) => {
     io.to(data.target).emit('ice-candidate', { 
       candidate: data.candidate, 
-      from: socket.id 
+      from: socket.id,
+      fromName: data.fromName
     });
   });
 
@@ -127,25 +149,23 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('new-message', data);
   });
 
-  socket.on('send-comment', (data) => {
-    io.to(data.roomId).emit('new-comment', data);
-  });
-
   socket.on('raise-hand', (data) => {
     socket.to(data.roomId).emit('user-raised-hand', data);
   });
 
   // Cleanup on disconnect
-  socket.on('disconnecting', () => {
+  socket.on('disconnect', () => {
+    console.log(`[DISCONNECT] User: ${socket.id}`);
     const roomId = socket.data.roomId;
     if (roomId && rooms[roomId]) {
-      if (socket.data.role === 'mentor') {
+      if (socket.data.role === 'mentor' && rooms[roomId].mentorSocketId === socket.id) {
         socket.to(roomId).emit('mentor-left');
         delete rooms[roomId];
       } else {
         rooms[roomId].students = rooms[roomId].students.filter(id => id !== socket.id);
         socket.to(roomId).emit('user-left', socket.id);
       }
+      broadcastRoomList();
     }
   });
 });

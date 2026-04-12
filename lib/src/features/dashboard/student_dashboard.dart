@@ -96,7 +96,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             margin: const EdgeInsets.only(right: 20),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
+              color: Colors.blue.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.person, color: Colors.blueAccent, size: 24),
@@ -144,7 +144,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.3),
+            color: Colors.blue.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -176,7 +176,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
@@ -241,12 +241,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+            border: Border.all(color: Colors.grey.withOpacity(0.1)),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                backgroundColor: Colors.blue.withOpacity(0.1),
                 child: Text(m['name']![0], style: const TextStyle(color: Colors.blue)),
               ),
               const SizedBox(width: 16),
@@ -262,7 +262,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: m['availability'] == "Now" ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                  color: m['availability'] == "Now" ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

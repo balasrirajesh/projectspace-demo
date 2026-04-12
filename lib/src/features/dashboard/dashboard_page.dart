@@ -72,7 +72,7 @@ class _DashboardState extends State<Dashboard> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
+            color: AppColors.primary.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -110,7 +110,7 @@ class _DashboardState extends State<Dashboard> {
       expandedHeight: 80.0,
       floating: true,
       pinned: true,
-      backgroundColor: AppColors.background.withValues(alpha: 0.8),
+      backgroundColor: AppColors.background.withOpacity(0.8),
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
@@ -241,12 +241,12 @@ class _DashboardState extends State<Dashboard> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.08),
+              color: color.withOpacity(0.08),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
           ],
-          border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+          border: Border.all(color: color.withOpacity(0.1), width: 1),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -258,7 +258,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 24),
@@ -345,9 +345,9 @@ class _DashboardState extends State<Dashboard> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -449,7 +449,7 @@ class _DashboardState extends State<Dashboard> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 24),

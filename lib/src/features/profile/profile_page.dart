@@ -53,7 +53,7 @@ class ProfileScreen extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
+            color: AppColors.primary.withOpacity(0.3),
             blurRadius: 30,
             offset: const Offset(0, 15),
           ),
@@ -87,9 +87,9 @@ class ProfileScreen extends StatelessWidget {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
+                        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
                         image: auth.profilePictureUrl.isNotEmpty 
                           ? DecorationImage(image: NetworkImage(auth.profilePictureUrl), fit: BoxFit.cover)
                           : null,
@@ -115,7 +115,7 @@ class ProfileScreen extends StatelessWidget {
                           Text(
                             "${auth.branch} • ${auth.collegeName}",
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withOpacity(0.9),
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -123,7 +123,7 @@ class ProfileScreen extends StatelessWidget {
                           Text(
                             "Class of ${auth.graduationYear}",
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
+                              color: Colors.white.withOpacity(0.7),
                               fontSize: 12,
                             ),
                           ),

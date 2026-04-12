@@ -444,7 +444,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage> with Ti
             onTap: onPressed,
             child: CircleAvatar(
               radius: 22,
-              backgroundColor: isActive ? Colors.red.withValues(alpha: 0.5) : color,
+              backgroundColor: isActive ? Colors.red.withOpacity(0.5) : color,
               child: Icon(icon, color: Colors.white, size: 22),
             ),
           ),

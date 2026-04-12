@@ -16,7 +16,7 @@ class MentorshipBioCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.04),
+              color: AppColors.primary.withOpacity(0.04),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
