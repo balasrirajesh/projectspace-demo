@@ -3,27 +3,31 @@ const { v4: uuidv4 } = require('uuid');
 
 exports.login = async (req, res) => {
     try {
+        console.log('[AUTH] Login Request Body:', JSON.stringify(req.body));
         const { email, name } = req.body;
         
         if (!email) {
+            console.warn('[AUTH] Missing email in request');
             return res.status(400).json({ message: 'Email is required' });
         }
 
         let user = await User.findOne({ email });
+        console.log('[AUTH] User Search Result:', user ? 'Found' : 'Not Found');
         
         if (!user) {
-            // Auto-register for demo purposes (matching Spring Boot logic)
+            console.log(`[AUTH] Auto-registering new user: ${email}`);
             user = new User({
                 id: uuidv4(),
                 email: email,
                 name: name || email.split('@')[0],
-                // Other fields would be added via signup or profile update
             });
             await user.save();
+            console.log('[AUTH] New user saved successfully');
         }
         
         res.status(200).json(user);
     } catch (err) {
+        console.error('[AUTH] Login Error:', err);
         res.status(500).json({ message: err.message });
     }
 };

@@ -20,7 +20,14 @@ const io = require('socket.io')(http, {
 });
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: '*', // For development, allow all. In production, this can be restricted.
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 
@@ -31,23 +38,21 @@ mongoose.connect(MONGODB_URI)
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // API Routes
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/chats', chatRoutes);
 
 // Root Health Check (Used by OpenShift Readiness/Liveness probes)
 app.get('/', (req, res) => {
-  const mongoStatus = mongoose.connection.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED';
-  res.status(mongoStatus === 'CONNECTED' ? 200 : 503).send({ 
-    status: 'UP', 
-    mongodb: mongoStatus,
-    message: 'Alumni Signaling Server is running',
-    timestamp: new Date().toISOString()
-  });
+  res.status(200).send('ALIVE');
 });
 
 app.get('/health', (req, res) => {
   res.status(200).send({ status: 'OK' });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).send({ status: 'OK', version: '1.0.0' });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -168,6 +173,16 @@ io.on('connection', (socket) => {
       broadcastRoomList();
     }
   });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err);
+  if (!res.headersSent) {
+    // Ensure CORS headers are included even in error responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
 });
 
 http.listen(PORT, '0.0.0.0', () => {

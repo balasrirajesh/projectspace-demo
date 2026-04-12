@@ -41,16 +41,19 @@ class ClassroomService {
     required String userName,
     required ClassroomRole role,
     String? title,
+    bool useMedia = true,
   }) async {
     _roomId = roomId;
     _role = role;
 
     try {
-      // 1. Get Camera/Mic access first
-      localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': {'facingMode': 'user', 'width': 640, 'height': 480},
-      });
+      // 1. Get Camera/Mic access ONLY if requested (don't start cam for lobby)
+      if (useMedia) {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': {'facingMode': 'user', 'width': 640, 'height': 480},
+        });
+      }
 
       // 2. Setup Socket.io
       _socket = io.io(serverUrl, io.OptionBuilder()

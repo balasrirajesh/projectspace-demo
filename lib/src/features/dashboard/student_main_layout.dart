@@ -6,6 +6,9 @@ import 'package:alumini_screen/src/features/chat/mentor_inbox_page.dart';
 import 'package:alumini_screen/src/features/profile/profile_page.dart';
 import 'package:alumini_screen/src/core/widgets/floating_navbar.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import 'package:alumini_screen/src/shared/providers/auth_provider.dart';
+import 'package:alumini_screen/src/features/profile/profile_setup_page.dart';
 
 class StudentMainLayout extends StatefulWidget {
   const StudentMainLayout({super.key});
@@ -32,26 +35,34 @@ class _StudentMainLayoutState extends State<StudentMainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      extendBody: true,
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: _pages,
-          ).animate(target: _selectedIndex.toDouble())
-           .fadeIn(duration: 400.ms),
-          
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: FloatingNavbar(
-              selectedIndex: _selectedIndex,
-              onTap: _onItemTapped,
-            ),
-          ).animate().slideY(begin: 1, end: 0, duration: 800.ms, curve: Curves.easeOutCubic),
-        ],
-      ),
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        // Guard: If profile is incomplete, force setup (matches mentor flow)
+        if (auth.status == UserStatus.incomplete) {
+          return const ProfileSetupPage();
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          extendBody: true,
+          body: Stack(
+            children: [
+              IndexedStack(
+                index: _selectedIndex,
+                children: _pages,
+              ), // Removed .animate() chain which was causing blank screen on init
+              
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: FloatingNavbar(
+                  selectedIndex: _selectedIndex,
+                  onTap: _onItemTapped,
+                ),
+              ).animate().slideY(begin: 1, end: 0, duration: 800.ms, curve: Curves.easeOutCubic),
+            ],
+          ),
+        );
+      },
     );
   }
 }

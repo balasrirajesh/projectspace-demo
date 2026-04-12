@@ -37,45 +37,120 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            _buildAppBar(context),
-            SliverPadding(
-              padding: const EdgeInsets.all(20.0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _buildGreeting(),
-                  const SizedBox(height: 24),
-                  _buildJoinSessionCard(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Available Mentors'),
-                  const SizedBox(height: 16),
-                  _buildMentorList(),
-                ]),
+    return Material(
+      color: const Color(0xFFF5F7FA),
+      child: Stack(
+        children: [
+          SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                _buildAppBar(context),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // Extra bottom padding for FAB
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildGreeting(),
+                      const SizedBox(height: 24),
+                      _buildJoinSessionCard(),
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('Available Mentors'),
+                      const SizedBox(height: 16),
+                      _buildMentorList(),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 100, // Adjusted to be above the floating navbar
+            child: _buildFAB(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFAB(BuildContext context) {
+    return FloatingActionButton.extended(
+      onPressed: () => _showJoinClassDialog(context),
+      backgroundColor: Colors.blueAccent,
+      icon: const Icon(Icons.sensors, color: Colors.white),
+      label: const Text(
+        "Join Live Class",
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  void _showJoinClassDialog(BuildContext context) {
+    final TextEditingController dialogController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Join Live Class"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Enter the class room name provided by your mentor.",
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: dialogController,
+              decoration: const InputDecoration(
+                hintText: "Enter room name",
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.room_outlined),
               ),
+              autofocus: true,
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final roomId = dialogController.text.trim().toLowerCase().replaceAll(' ', '-');
+              if (roomId.isNotEmpty) {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => InteractiveClassroomPage(roomId: roomId),
+                  ),
+                );
+              }
+            },
+            child: const Text("Join Now"),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 70.0,
+      expandedHeight: 80.0,
       floating: true,
       pinned: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white.withOpacity(0.9),
       elevation: 0,
+      surfaceTintColor: Colors.transparent,
       flexibleSpace: FlexibleSpaceBar(
         title: const Text(
           "Student Portal",
           style: TextStyle(
-            color: Colors.black87,
+            color: Colors.black,
             fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
         centerTitle: false,
@@ -183,7 +258,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               controller: _roomIdController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: "Enter Room ID (e.g. math-class-101)",
+                hintText: "Enter room name (e.g. math-class-101)",
                 hintStyle: TextStyle(color: Colors.white60),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 15),

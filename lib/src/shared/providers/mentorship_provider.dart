@@ -65,6 +65,7 @@ class MentorshipProvider with ChangeNotifier {
       roomId: 'global-lobby',
       userName: 'Discovery-Agent',
       role: ClassroomRole.student,
+      useMedia: false, // Don't start cam just for the room list updates
     );
 
     // 2. Load mentorship requests

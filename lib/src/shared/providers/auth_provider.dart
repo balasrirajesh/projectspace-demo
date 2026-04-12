@@ -35,7 +35,7 @@ class AuthProvider with ChangeNotifier {
     if (saved != null && saved.isNotEmpty) {
       try {
         final result = await http
-            .get(Uri.parse('http://$saved:8080/'))
+            .get(Uri.parse('http://$saved:3000/'))
             .timeout(const Duration(seconds: 1));
         if (result.statusCode < 500) {
           _serverIp = saved;
@@ -49,7 +49,7 @@ class AuthProvider with ChangeNotifier {
       for (final ip in candidates) {
         try {
           final result = await http
-              .get(Uri.parse('http://$ip:8080/'))
+              .get(Uri.parse('http://$ip:3000/'))
               .timeout(const Duration(seconds: 2));
           if (result.statusCode < 500) {
             _serverIp = ip;
@@ -58,7 +58,7 @@ class AuthProvider with ChangeNotifier {
         } catch (_) {}
       }
     } catch (_) {
-      _serverIp = '10.34.155.81';
+      _serverIp = 'localhost';
     }
   }
 
@@ -82,18 +82,17 @@ class AuthProvider with ChangeNotifier {
   static String get _productionSignalingUrl => dotenv.get('SIGNALING_URL', fallback: '');
 
   static String getBaseUrl(String endpoint) {
-    // Priority: 1. Production signaling URL 2. Localhost 3. Resolved IP
     if (_productionSignalingUrl.isNotEmpty) {
-      return '${_productionSignalingUrl.replaceAll(RegExp(r'/$'), '')}/$endpoint';
+      return '${_productionSignalingUrl.replaceAll(RegExp(r'/$'), '')}/api/$endpoint';
     }
     final host = kIsWeb ? 'localhost' : _serverIp;
-    return 'http://$host:3000/$endpoint';
+    return 'http://$host:3000/api/$endpoint';
   }
 
   static String getSignalingUrl() {
     // Priority: 1. Production URL (if not empty/placeholder) 2. Resolved IP 3. Localhost
     if (_productionSignalingUrl.isNotEmpty) {
-      return _productionSignalingUrl;
+      return _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
     }
     final host = kIsWeb ? 'localhost' : _serverIp;
     return 'http://$host:3000';

@@ -6,8 +6,21 @@ import 'package:alumini_screen/src/core/theme/app_theme.dart';
 import 'package:alumini_screen/src/features/mentorship/interactive_classroom_page.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-class SessionsPage extends StatelessWidget {
+class SessionsPage extends StatefulWidget {
   const SessionsPage({super.key});
+
+  @override
+  State<SessionsPage> createState() => _SessionsPageState();
+}
+
+class _SessionsPageState extends State<SessionsPage> {
+  final TextEditingController _joinController = TextEditingController();
+
+  @override
+  void dispose() {
+    _joinController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +55,57 @@ class SessionsPage extends StatelessWidget {
 
   Widget? _buildFAB(BuildContext context) {
     final auth = context.read<AuthProvider>();
-    if (auth.role == UserRole.student) return null;
+    final isStudent = auth.role == UserRole.student;
 
     return FloatingActionButton.extended(
-      onPressed: () => _showCreateClassDialog(context),
+      onPressed: () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context),
       backgroundColor: AppColors.primary,
-      icon: const Icon(Icons.add_rounded, color: Colors.white),
-      label: const Text("Create Live Class", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      icon: Icon(isStudent ? Icons.login_rounded : Icons.add_rounded, color: Colors.white),
+      label: Text(
+        isStudent ? "Join Live Class" : "Create Live Class", 
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+      ),
+    );
+  }
+
+  void _showJoinClassDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Join Live Class"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: "Enter Room Name (e.g. flutter-basics)",
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final roomId = controller.text.trim();
+              if (roomId.isNotEmpty) {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => InteractiveClassroomPage(
+                      roomId: roomId.toLowerCase().replaceAll(' ', '-'),
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text("Join Now"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -126,25 +183,114 @@ class SessionsPage extends StatelessWidget {
     return Consumer<MentorshipProvider>(
       builder: (context, provider, child) {
         final webinars = provider.webinars;
-        if (webinars.isEmpty) return _buildEmptyState("No live or upcoming webinars.");
+        final auth = context.read<AuthProvider>();
+        final isStudent = auth.role == UserRole.student;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: webinars.length,
-          itemBuilder: (context, index) {
-            final webinar = webinars[index];
-            return _buildSessionCard(
-              title: webinar['title'],
-              subtitle: "Live Stream Class",
-              time: webinar['startTime'],
-              duration: "${webinar['attendees']} attending",
-              isLive: webinar['isLive'],
-              index: index,
-              icon: Icons.cast_for_education_rounded,
-            );
-          },
+        return Column(
+          children: [
+            if (isStudent) _buildJoinRoomSection(context),
+            Expanded(
+              child: webinars.isEmpty 
+                ? _buildEmptyState("No live or upcoming webinars.")
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: webinars.length,
+                    itemBuilder: (context, index) {
+                      final webinar = webinars[index];
+                      return _buildSessionCard(
+                        title: webinar['title'],
+                        subtitle: "Live Stream Class",
+                        time: webinar['startTime'],
+                        duration: "${webinar['attendees']} attending",
+                        isLive: webinar['isLive'],
+                        index: index,
+                        icon: Icons.cast_for_education_rounded,
+                      );
+                    },
+                  ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildJoinRoomSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Quick Join",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "Enter a room name or ID to join a live session directly.",
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _joinController,
+                    decoration: const InputDecoration(
+                      hintText: "Enter room name...",
+                      hintStyle: TextStyle(fontSize: 14, color: AppColors.textLight),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final roomId = _joinController.text.trim();
+                    if (roomId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => InteractiveClassroomPage(
+                            roomId: roomId.toLowerCase().replaceAll(' ', '-'),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("Join"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
