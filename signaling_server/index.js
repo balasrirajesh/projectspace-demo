@@ -57,7 +57,7 @@ app.get('/api/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Version: 1.0.2 - Force Clear Support
+// Version: 1.0.3 - Explicit Wipe Support [2026-04-13]
 const rooms = {};
 
 // Maintenance endpoints
