@@ -73,12 +73,11 @@ class ClassroomService {
             .enableAutoConnect()
             .setReconnectionAttempts(10)
             .setReconnectionDelay(3000)
-            .setConnectionTimeout(20000)
             .setExtraHeaders({'Connection': 'upgrade', 'Upgrade': 'websocket'})
             .build());
         
         _socket?.io.timeout = 20000;
-        _registerBasicEvents(serverUrl);
+        _registerBasicEvents(serverUrl, userName); // Pass userName for events
       } else {
         // Already connected, just join the new room
         _socket!.emit('join-room', {
@@ -89,8 +88,12 @@ class ClassroomService {
         });
         onConnected?.call();
       }
+    } catch (e) {
+      onError?.call('Critical Error: $e');
+    }
+  }
 
-  void _registerBasicEvents(String serverUrl) {
+  void _registerBasicEvents(String serverUrl, String userName) {
     _socket!.onConnect((_) async {
       dev.log('✅ Connected to Signaling Server: $serverUrl');
       await Future.delayed(const Duration(milliseconds: 500));
@@ -98,73 +101,65 @@ class ClassroomService {
       _socket!.emit('join-room', {
         'roomId': _roomId,
         'role': _role == ClassroomRole.mentor ? 'mentor' : 'student',
-        'userName': 'Discovery-Lobby', // Default if not re-joined
+        'userName': userName,
       });
       onConnected?.call();
     });
 
+    _socket!.onConnectError((err) {
+      dev.log('❌ Connection Error ($serverUrl): $err');
+    });
+
+    _socket!.onReconnectAttempt((attempt) => dev.log('🔄 Reconnect attempt: $attempt'));
+    _socket!.onReconnectError((err) => dev.log('❌ Reconnect Error: $err'));
+
+    _socket!.onError((err) {
+      dev.log('❌ Socket Error: $err');
+      onError?.call('Socket Connection failed. Error: $err');
+    });
+
+    _socket!.on('error', (msg) {
+      dev.log('⚠️ Server Error: $msg');
+      onError?.call(msg);
+    });
+
+    // Listen for global room updates
     _socket!.on('room-list', (data) {
       onRoomListUpdate?.call(data as List<dynamic>);
     });
 
-      _socket!.onConnectError((err) {
-        dev.log('❌ Connection Error ($serverUrl): $err');
-        // On mobile, this often means SSL handshake failed
-      });
+    // --- Signaling Handshake ---
+    
+    // When a new student joins, the Mentor creates an OFFER
+    _socket!.on('user-joined', (studentId) async {
+      if (_role == ClassroomRole.mentor) {
+        await _createOffer(studentId, userName);
+      }
+    });
 
-      _socket!.onReconnectAttempt((attempt) => dev.log('🔄 Reconnect attempt: $attempt'));
-      _socket!.onReconnectError((err) => dev.log('❌ Reconnect Error: $err'));
+    // When an OFFER arrives (usually for Students)
+    _socket!.on('offer', (data) async {
+      if (_role == ClassroomRole.student) {
+        await _handleOffer(data, userName);
+      }
+    });
 
-      _socket!.onError((err) {
-        dev.log('❌ Socket Error: $err');
-        onError?.call('Socket Connection failed. Error: $err');
-      });
+    // When an ANSWER arrives (usually for Mentors)
+    _socket!.on('answer', (data) async => await _handleAnswer(data));
 
-      _socket!.on('error', (msg) {
-        dev.log('⚠️ Server Error: $msg');
-        onError?.call(msg);
-      });
+    // When an ICE candidate arrives (Both)
+    _socket!.on('ice-candidate', (data) async => await _handleIceCandidate(data));
 
-      // Listen for global room updates
-      _socket!.on('room-list', (data) {
-        onRoomListUpdate?.call(data);
-      });
+    // Cleanup when someone leaves
+    _socket!.on('user-left', (id) => _removePeer(id));
+    _socket!.on('mentor-left', (_) => onError?.call('Mentor has ended the session.'));
 
-      // --- Signaling Handshake ---
-      
-      // When a new student joins, the Mentor creates an OFFER
-      _socket!.on('user-joined', (studentId) async {
-        if (_role == ClassroomRole.mentor) {
-          await _createOffer(studentId, userName);
-        }
-      });
+    // Chat & Engagement
+    _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
+    _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
 
-      // When an OFFER arrives (usually for Students)
-      _socket!.on('offer', (data) async {
-        if (_role == ClassroomRole.student) {
-          await _handleOffer(data, userName);
-        }
-      });
-
-      // When an ANSWER arrives (usually for Mentors)
-      _socket!.on('answer', (data) async => await _handleAnswer(data));
-
-      // When an ICE candidate arrives (Both)
-      _socket!.on('ice-candidate', (data) async => await _handleIceCandidate(data));
-
-      // Cleanup when someone leaves
-      _socket!.on('user-left', (id) => _removePeer(id));
-      _socket!.on('mentor-left', (_) => onError?.call('Mentor has ended the session.'));
-
-      // Chat & Engagement
-      _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
-      _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
-
-      // 4. Connect
-      if (!_socket!.connected) _socket!.connect();
-    } catch (e) {
-      onError?.call('Critical Error: $e');
-    }
+    // 4. Connect
+    if (!_socket!.connected) _socket!.connect();
   }
 
   // --- WebRTC Logic ---

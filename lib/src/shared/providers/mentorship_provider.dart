@@ -63,7 +63,7 @@ class MentorshipProvider with ChangeNotifier {
     _classroomService.joinRoom(
       serverUrl: AuthProvider.getSignalingUrl(),
       roomId: 'global-lobby',
-      userName: auth.userName,
+      userName: 'Discovery-User', // Background lobby join doesn't need personal identity
       role: ClassroomRole.student,
       useMedia: false, // Don't start cam just for the room list updates
     );
