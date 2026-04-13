@@ -25,8 +25,9 @@ class ClassroomService {
   // Handlers for the UI
   Function(String participantId, MediaStream stream)? onRemoteStreamAdded;
   Function(String participantId)? onRemoteStreamRemoved;
-  Function(String from, String message)? onChatMessage;
+  Function(String from, String text)? onChatMessage;
   Function(String from)? onHandRaised;
+  Function(String mentorId, String userName)? onMentorJoined;
   Function(String message)? onError;
   Function()? onConnected;
   Function(List<dynamic> rooms)? onRoomListUpdate;
@@ -158,6 +159,11 @@ class ClassroomService {
     _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
     _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
 
+    _socket!.on('mentor-joined', (data) {
+      dev.log('👨‍🏫 [RTC] Mentor joined: ${data['userName']}');
+      onMentorJoined?.call(data['mentorId'], data['userName']);
+    });
+
     // 4. Connect
     if (!_socket!.connected) _socket!.connect();
   }
@@ -184,24 +190,52 @@ class ClassroomService {
     // Receive remote video/audio tracks
     pc.onTrack = (event) {
       dev.log('📡 [RTC] Track received: ${event.track.kind} from $remoteId');
+      
       if (event.streams.isNotEmpty) {
         remoteStreams[remoteId] = event.streams[0];
         onRemoteStreamAdded?.call(remoteId, event.streams[0]);
+      } else {
+        // Fallback for some unified-plan implementations where streams might be empty
+        dev.log('⚠️ [RTC] Stream array empty, creating fallback stream for track');
+        _createFallbackStream(remoteId, event.track);
       }
     };
 
     pc.onIceConnectionState = (state) {
       dev.log('❄️ [RTC] ICE Connection State ($remoteId): ${state.name}');
       if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-        dev.log('❌ [RTC] ICE connection failed. NAT traversal failed.');
+        dev.log('❌ [RTC] ICE connection failed. NAT traversal failed. A TURN server may be required.');
+        onError?.call('Connection failed: NAT traversal issue. Check your network.');
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateConnected) {
+        dev.log('✅ [RTC] ICE connection established with $remoteId');
       }
     };
 
     pc.onConnectionState = (state) {
-      dev.log('🔗 [RTC] Connection State ($remoteId): ${state.name}');
+      dev.log('🔗 [RTC] Global Connection State ($remoteId): ${state.name}');
+    };
+
+    // Compatibility fallback for older WebRTC implementations
+    pc.onAddStream = (stream) {
+      dev.log('📡 [RTC] Stream added (legacy fallback): $remoteId');
+      remoteStreams[remoteId] = stream;
+      onRemoteStreamAdded?.call(remoteId, stream);
     };
 
     return pc;
+  }
+
+  Future<void> _createFallbackStream(String remoteId, MediaStreamTrack track) async {
+    // If we already have a stream for this remote user, just add the track
+    if (remoteStreams.containsKey(remoteId)) {
+      remoteStreams[remoteId]!.addTrack(track);
+    } else {
+      // Create a brand new stream and add the track
+      final stream = await createLocalMediaStream('remote_$remoteId');
+      await stream.addTrack(track);
+      remoteStreams[remoteId] = stream;
+      onRemoteStreamAdded?.call(remoteId, stream);
+    }
   }
 
   Future<void> _createOffer(String studentId, String localName) async {

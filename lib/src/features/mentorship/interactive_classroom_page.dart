@@ -84,6 +84,20 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
+    _classroomService.onMentorJoined = (mentorId, userName) {
+      if (mounted) {
+        setState(() {
+          _connectionState = "Mentor ($userName) Joined! Connecting...";
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("👨‍🏫 Mentor $userName has joined the session!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    };
+
     // Security check: only users with mentor role in AuthProvider can be mentors
     final classroomRole = auth.role == UserRole.student
         ? ClassroomRole.student

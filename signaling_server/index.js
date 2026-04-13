@@ -108,17 +108,26 @@ io.on('connection', (socket) => {
       };
     }
 
-    if (role === 'mentor') {
+    if (data.role === 'mentor') {
+      const wasEmpty = !rooms[roomId].mentorSocketId;
       rooms[roomId].mentorSocketId = socket.id;
-      rooms[roomId].title = title;
-      console.log(`[ROOM] Mentor (${socket.id}) created/started: ${roomId} (${title})`);
-    } else {
-      if (!rooms[roomId].students.includes(socket.id)) {
-        rooms[roomId].students.push(socket.id);
-      }
-      console.log(`[ROOM] Student (${socket.id}) joined: ${roomId}`);
+      
+      if (wasEmpty) {
+        console.log(`[ROOM] Mentor ${socket.id} started room: ${roomId}`);
+        // 1. Notify existing students that mentor is here
+        socket.to(roomId).emit('mentor-joined', { 
+          mentorId: socket.id, 
+          userName: data.userName 
+        });
 
-      // Notify mentor that a student joined (if mentor exists)
+        // 2. Trigger handshake for all waiting students
+        rooms[roomId].students.forEach(studentId => {
+          socket.emit('user-joined', studentId);
+        });
+      }
+    } else {
+      rooms[roomId].students.push(socket.id);
+      // If mentor is already here, notify them about the new student
       if (rooms[roomId].mentorSocketId) {
         io.to(rooms[roomId].mentorSocketId).emit('user-joined', socket.id);
       }
