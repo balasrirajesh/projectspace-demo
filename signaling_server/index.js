@@ -129,6 +129,7 @@ io.on('connection', (socket) => {
 
   // Relay Offer: { target, offer, fromName }
   socket.on('offer', (data) => {
+    console.log(`[RTC] Offer from ${socket.id} (${data.fromName}) to ${data.target}`);
     io.to(data.target).emit('offer', {
       offer: data.offer,
       from: socket.id,
@@ -138,6 +139,7 @@ io.on('connection', (socket) => {
 
   // Relay Answer: { target, answer, fromName }
   socket.on('answer', (data) => {
+    console.log(`[RTC] Answer from ${socket.id} (${data.fromName}) to ${data.target}`);
     io.to(data.target).emit('answer', {
       answer: data.answer,
       from: socket.id,
@@ -147,6 +149,9 @@ io.on('connection', (socket) => {
 
   // Relay ICE Candidate: { target, candidate, fromName }
   socket.on('ice-candidate', (data) => {
+    // Shhh, only log if needed to avoid console spam, 
+    // but useful for identifying if ICE exchange is even happening
+    // console.log(`[RTC] ICE Candidate from ${socket.id} to ${data.target}`);
     io.to(data.target).emit('ice-candidate', {
       candidate: data.candidate,
       from: socket.id,

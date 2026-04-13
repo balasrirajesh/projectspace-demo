@@ -30,9 +30,9 @@ class AuthProvider with ChangeNotifier {
     // We rely on the SIGNALING_URL from .env or window.location.
     if (kIsWeb) {
       if (_productionSignalingUrl.isNotEmpty) {
-        dev.log('🌐 [AUTH] Web mode: Utilizing production signaling URL');
+        print('🌐 [AUTH] Web mode: Utilizing production signaling URL ($_productionSignalingUrl)');
       } else {
-        dev.log('🌐 [AUTH] Web mode: No production URL found, defaulting to localhost');
+        print('🌐 [AUTH] Web mode: No production URL found, defaulting to localhost');
       }
       return;
     }

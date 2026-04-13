@@ -26,12 +26,17 @@ class ClassroomService {
   Function()? onConnected;
   Function(List<dynamic> rooms)? onRoomListUpdate;
 
-  // Standard WebRTC Configuration using Google STUN
+  // Standard WebRTC Configuration using multiple reliable STUN servers
   final Map<String, dynamic> _rtcConfig = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
+      {'urls': 'stun:stun2.l.google.com:19302'},
+      {'urls': 'stun:stun3.l.google.com:19302'},
+      {'urls': 'stun:stun4.l.google.com:19302'},
     ],
     'iceTransportPolicy': 'all',
+    'sdpSemantics': 'unified-plan',
   };
 
   /// Main entry point to join a live class
@@ -63,8 +68,12 @@ class ClassroomService {
           .build());
 
       // 3. Register Events
-      _socket!.onConnect((_) {
+      _socket!.onConnect((_) async {
         dev.log('✅ Connected to Signaling Server: $serverUrl');
+        
+        // Brief delay before joining to ensure backend socket state is fully established
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         _socket!.emit('join-room', {
           'roomId': _roomId,
           'role': _role == ClassroomRole.mentor ? 'mentor' : 'student',
@@ -145,6 +154,7 @@ class ClassroomService {
 
     // Send ICE candidates to the signaling server
     pc.onIceCandidate = (candidate) {
+      dev.log('❄️ [RTC] New local ICE candidate for $remoteId');
       _socket!.emit('ice-candidate', {
         'target': remoteId,
         'candidate': candidate.toMap(),
@@ -154,10 +164,22 @@ class ClassroomService {
 
     // Receive remote video/audio tracks
     pc.onTrack = (event) {
+      dev.log('📡 [RTC] Track received: ${event.track.kind} from $remoteId');
       if (event.streams.isNotEmpty) {
         remoteStreams[remoteId] = event.streams[0];
         onRemoteStreamAdded?.call(remoteId, event.streams[0]);
       }
+    };
+
+    pc.onIceConnectionState = (state) {
+      dev.log('❄️ [RTC] ICE Connection State ($remoteId): ${state.name}');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        dev.log('❌ [RTC] ICE connection failed. NAT traversal failed.');
+      }
+    };
+
+    pc.onConnectionState = (state) {
+      dev.log('🔗 [RTC] Connection State ($remoteId): ${state.name}');
     };
 
     return pc;
