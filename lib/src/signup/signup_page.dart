@@ -4,6 +4,7 @@ import 'package:alumini_screen/src/alumni/core/theme/app_theme.dart';
 import 'package:alumini_screen/src/alumni/shared/widgets/main_layout.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
+import 'package:alumini_screen/src/student/shared/widgets/student_main_layout.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
