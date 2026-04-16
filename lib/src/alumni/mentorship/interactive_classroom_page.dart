@@ -32,7 +32,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _showChat = false;
-  String _connectionState = "Connecting...";
+  bool _isInitialized = false;
+  String _connectionState = "Connecting to classroom handshake...";
 
   @override
   void initState() {
@@ -146,9 +147,14 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       });
     }
 
-    setState(() {
-      _localRenderer.srcObject = _classroomService.localStream;
-    });
+    if (mounted) {
+      setState(() {
+        if (_classroomService.localStream != null) {
+          _localRenderer.srcObject = _classroomService.localStream;
+        }
+        _isInitialized = true;
+      });
+    }
   }
 
   @override
@@ -369,11 +375,35 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             borderRadius: BorderRadius.circular(22),
             child: Stack(
               children: [
-                RTCVideoView(
-                  p['renderer'] as RTCVideoRenderer,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                  mirror: isLocal,
-                ),
+                if (_localRenderer.srcObject != null && p['renderer'] == _localRenderer)
+                  RTCVideoView(
+                    _localRenderer,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    mirror: true,
+                  )
+                else if (p['renderer'] != _localRenderer && (p['renderer'] as RTCVideoRenderer).srcObject != null)
+                  RTCVideoView(
+                    p['renderer'] as RTCVideoRenderer,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    mirror: false,
+                  )
+                else
+                  Container(
+                    color: Colors.black87,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam_off, color: Colors.white24, size: 40),
+                          const SizedBox(height: 12),
+                          Text(
+                            p['name'] as String,
+                            style: const TextStyle(color: Colors.white24, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 // Gradient Overlay for better legibility
                 Positioned.fill(
                   child: Container(

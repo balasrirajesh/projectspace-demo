@@ -87,7 +87,7 @@ class ClassroomService {
             .setReconnectionDelay(3000)
             .build());
         
-        _socket?.io.timeout = 20000;
+        _socket?.io.timeout = 30000;
         _registerBasicEvents(serverUrl, userName); // Pass userName for events
       } else {
         // Already connected, just join the new room
@@ -371,6 +371,11 @@ class ClassroomService {
 
   Future<void> dispose() async {
     await leaveRoom();
+    
+    // Explicitly clean up stream references
+    localStream = null;
+    remoteStreams.clear();
+    
     _socket?.dispose();
     _socket = null;
   }

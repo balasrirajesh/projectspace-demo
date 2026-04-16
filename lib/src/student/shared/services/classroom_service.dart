@@ -355,6 +355,11 @@ class ClassroomService {
 
   Future<void> dispose() async {
     await leaveRoom();
+    
+    // Explicitly clean up stream references
+    localStream = null;
+    remoteStreams.clear();
+    
     _socket?.dispose();
     _socket = null;
   }
