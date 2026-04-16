@@ -26,14 +26,16 @@ class AuthProvider with ChangeNotifier {
   static String get serverIp => _serverIp;
 
   static Future<void> resolveServerIp() async {
+    // If we have a production URL baked into .env (Jenkins build), skip local discovery.
+    // This prevents "Failed host lookup" logs when deployed to real devices.
+    if (_productionSignalingUrl.isNotEmpty) {
+      dev.log('🌐 [AUTH] Production URL detected: $_productionSignalingUrl. Skipping local discovery.');
+      return;
+    }
+
     // On web, we cannot easily scan local networks due to CORS. 
-    // We rely on the SIGNALING_URL from .env or window.location.
     if (kIsWeb) {
-      if (_productionSignalingUrl.isNotEmpty) {
-        print('🌐 [AUTH] Web mode: Utilizing production signaling URL ($_productionSignalingUrl)');
-      } else {
-        print('🌐 [AUTH] Web mode: No production URL found, defaulting to localhost');
-      }
+      print('🌐 [AUTH] Web mode: No production URL found, defaulting to localhost');
       return;
     }
 
