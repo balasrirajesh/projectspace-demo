@@ -85,7 +85,7 @@ class ClassroomService {
         dev.log('📂 [CLASS] Socket Path: /api/socket');
 
         _socket = io.io(serverUrl, io.OptionBuilder()
-            .setTransports(['polling', 'websocket']) 
+            .setTransports(['websocket']) // Force websocket only (more robust on OpenShift)
             .setPath('/api/socket') // Explicit path for deployment stability
             .setQuery({'userName': userName})
             .enableAutoConnect()

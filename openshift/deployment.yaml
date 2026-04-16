@@ -25,7 +25,7 @@ spec:
         - name: PORT
           value: "3000"
         - name: MONGODB_URI
-          value: "mongodb://mongodb:27017/alumni_app"
+          value: "mongodb://admin:password@mongodb:27017/alumni_app?authSource=admin"
         - name: START_MEDIA_SERVER
           value: "false"
         readinessProbe:
