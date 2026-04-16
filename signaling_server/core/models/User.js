@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
     skills: [{ type: String }],
     techField: { type: String },
     company: { type: String },
-    yoe: { type: String }
+    yoe: { type: String },
+    role: { type: String, enum: ['mentor', 'student', 'admin'], default: 'student' },
+    status: { type: String, enum: ['incomplete', 'pending', 'verified', 'rejected', 'blocked'], default: 'incomplete' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

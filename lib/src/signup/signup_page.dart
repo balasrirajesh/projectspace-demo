@@ -31,8 +31,10 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // Step 1: Initial Signup
-    context.read<AuthProvider>().updateProfile(
+    // Step 1: Initial Signup & Force Setup View
+    final auth = context.read<AuthProvider>();
+    auth.enableSignupMode();
+    auth.updateProfile(
       name: username,
       collegeName: college,
     );

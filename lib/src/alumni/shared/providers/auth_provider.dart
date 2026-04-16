@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages the authentication state and user profile information.
-enum UserRole { mentor, student }
+enum UserRole { mentor, student, admin }
 enum UserStatus { incomplete, pending, verified, rejected }
 
 class AuthProvider with ChangeNotifier {
@@ -89,25 +89,37 @@ class AuthProvider with ChangeNotifier {
   static String get _productionSignalingUrl => dotenv.get('SIGNALING_URL', fallback: '');
 
   static String getBaseUrl(String endpoint) {
-    if (_productionSignalingUrl.isNotEmpty) {
-      return '${_productionSignalingUrl.replaceAll(RegExp(r'/$'), '')}/api/$endpoint';
+    final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    
+    // Priority 1: Smart Debug Fallback for Local Development
+    if (kDebugMode && kIsWeb) {
+      return 'http://localhost:3000/api$cleanEndpoint';
     }
+
+    // Priority 2: Production URL (from .env)
+    if (_productionSignalingUrl.isNotEmpty) {
+      String base = _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
+      return "$base/api$cleanEndpoint";
+    }
+
+    // Priority 3: Fallback: Resolved IP or Localhost
     final host = kIsWeb ? 'localhost' : _serverIp;
-    return 'http://$host:3000/api/$endpoint';
+    return 'http://$host:3000/api$cleanEndpoint';
   }
 
   static String getSignalingUrl() {
-    // Priority: 1. Production URL (from .env)
-    if (_productionSignalingUrl.isNotEmpty) {
-      String url = _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
-      // Ensure explicit port 443 for production HTTPS to avoid ':0' glitch in some socket clients
-      if (url.startsWith('https://') && !url.contains(':', 8)) {
-        return '$url:443';
-      }
-      return url;
+    // Priority 1: Smart Debug Fallback for Local Development
+    // If we're on web (localhost) and in debug mode, prefer local server directly
+    if (kDebugMode && kIsWeb) {
+      return 'http://localhost:3000';
     }
 
-    // 2. Fallback: Resolved IP or Localhost
+    // Priority 2: Production URL (from .env) if provided
+    if (_productionSignalingUrl.isNotEmpty) {
+      return _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
+    }
+
+    // Priority 3: Fallback: Resolved IP or Localhost
     final host = kIsWeb ? 'localhost' : _serverIp;
     return 'http://$host:3000';
   }
@@ -131,6 +143,9 @@ class AuthProvider with ChangeNotifier {
   bool get isDemoMode => _isDemoMode;
   UserRole get role => _role;
   UserStatus get status => _status;
+  bool get isAuthenticated => _userId != null;
+  bool _forceSetup = false;
+  bool get forceSetup => _forceSetup;
 
   String _userName = 'Alex';
   String _techField = 'Flutter Developer';
@@ -174,10 +189,16 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     _isDemoMode = false;
-    _role = email.endsWith('@stud.com') ? UserRole.student : UserRole.mentor;
+    _role = email.endsWith('@stud.com') 
+        ? UserRole.student 
+        : (email.endsWith('@admin.com') ? UserRole.admin : UserRole.mentor);
     notifyListeners();
 
     try {
+      // Logic for using backend if available can go here
+      // For now, we utilize the demo fallback immediately to avoid network blocking
+      return _fallbackToDemo(email);
+      /*
       final response = await http
           .post(
             Uri.parse('$baseUrl/login'),
@@ -204,12 +225,14 @@ class AuthProvider with ChangeNotifier {
         _error = 'Server error (${response.statusCode})';
         return false;
       }
+      */
     } catch (e) {
       if (allowDemoFallback && email.isNotEmpty) return _fallbackToDemo(email);
       _error = 'Connection error: $e';
       return false;
     } finally {
       _isLoading = false;
+      _forceSetup = false; // Never force setup on login
       notifyListeners();
     }
   }
@@ -225,7 +248,9 @@ class AuthProvider with ChangeNotifier {
 
   bool _fallbackToDemo(String email) {
     _isDemoMode = true;
-    _role = email.endsWith('@stud.com') ? UserRole.student : UserRole.mentor;
+    _role = email.endsWith('@stud.com') 
+        ? UserRole.student 
+        : (email.endsWith('@admin.com') ? UserRole.admin : UserRole.mentor);
     _userId = '${DateTime.now().millisecondsSinceEpoch}';
     _email = email;
     String rawName = email.contains('@') ? email.split('@')[0] : email;
@@ -236,6 +261,7 @@ class AuthProvider with ChangeNotifier {
     
     if (_userName.isEmpty) _userName = 'Demo User';
     _status = UserStatus.incomplete; 
+    _forceSetup = false; // Default to false for demo logins
     _techField = 'Alumni Mentor';
     _company = 'Tech Demo Corp';
     _error = null;
@@ -276,6 +302,7 @@ class AuthProvider with ChangeNotifier {
     
     if (_status == UserStatus.incomplete) {
       _status = UserStatus.pending;
+      _forceSetup = false; // Setup complete
     }
     notifyListeners();
   }
@@ -292,4 +319,19 @@ class AuthProvider with ChangeNotifier {
   }
 
   bool get canAccessPremiumFeatures => _status == UserStatus.verified;
+
+  void logout() {
+    _userId = null;
+    _isDemoMode = false;
+    _role = UserRole.mentor;
+    _status = UserStatus.incomplete;
+    _forceSetup = false;
+    notifyListeners();
+  }
+
+  void enableSignupMode() {
+    _forceSetup = true;
+    _status = UserStatus.incomplete;
+    notifyListeners();
+  }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:convert';
 import 'dart:developer' as dev;
 
 /// Roles for the classroom:
@@ -77,6 +80,7 @@ class ClassroomService {
       if (_socket == null || !_socket!.connected) {
         _socket = io.io(serverUrl, io.OptionBuilder()
             .setTransports(['websocket', 'polling'])
+            .setPath('/api/socket')
             .setQuery({'userName': userName})
             .enableAutoConnect()
             .setReconnectionAttempts(10)
@@ -164,6 +168,17 @@ class ClassroomService {
 
     // Chat & Engagement
     _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
+    
+    // Media Relay (Images)
+    _socket!.on('new-image', (data) {
+      dev.log('🖼️ [RTC] Visual media received from ${data['userName']}');
+      // Mix image messages into chat with a type flag
+      onChatMessage?.call(data['userName'] ?? 'Unknown', '[IMAGE]');
+      // We also update the messages list directly in the UI via the standard handler
+      // but the UI needs to know it's an image.
+      // For simplicity, we can extend the message map in the UI.
+    });
+
     _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
 
     _socket!.on('mentor-joined', (data) {
@@ -302,6 +317,25 @@ class ClassroomService {
   void sendMessage(String text, String userName) => 
     _socket?.emit('send-message', {'text': text, 'roomId': _roomId, 'userName': userName});
     
+  /// Relays an image file via Socket.io as a base64 string
+  Future<void> sendImage(XFile file, String userName) async {
+    try {
+      final bytes = await File(file.path).readAsBytes();
+      final base64String = base64Encode(bytes);
+      
+      dev.log('📸 [RTC] Relaying image from $userName (${bytes.length} bytes)');
+      
+      _socket?.emit('send-image', {
+        'image': base64String,
+        'roomId': _roomId,
+        'userName': userName,
+        'type': 'image'
+      });
+    } catch (e) {
+      dev.log('❌ [RTC] Failed to send image: $e');
+    }
+  }
+
   void raiseHand(String userName) => 
     _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName});
 

@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'dart:developer' as dev;
+import 'dart:io' as dart_io; // Use alias to avoid conflict with socket_io
+import 'package:image_picker/image_picker.dart'; 
 
 /// Roles for the classroom:
 /// - Mentor (Alumni): Can start sessions, send offers.
@@ -29,6 +32,8 @@ class ClassroomService {
   Function(String from)? onHandRaised;
   Function(String mentorId, String userName)? onMentorJoined;
   Function(String message)? onError;
+  Function(String message)? onSessionTerminated;
+  Function(Map<String, dynamic> data)? onAnnouncementReceived;
   Function()? onConnected;
   Function(List<dynamic> rooms)? onRoomListUpdate;
 
@@ -76,15 +81,15 @@ class ClassroomService {
       // 2. Setup or Reuse Socket.io
       if (_socket == null || !_socket!.connected) {
         _socket = io.io(serverUrl, io.OptionBuilder()
-            .setTransports(['websocket', 'polling'])
+            .setTransports(['polling', 'websocket']) 
+            .setPath('/api/socket') // Explicit path for deployment stability
             .setQuery({'userName': userName})
             .enableAutoConnect()
             .setReconnectionAttempts(10)
             .setReconnectionDelay(3000)
-            .setExtraHeaders({'Connection': 'upgrade', 'Upgrade': 'websocket'})
             .build());
         
-        _socket?.io.timeout = 20000;
+        _socket?.io.timeout = 30000;
         _registerBasicEvents(serverUrl, userName); // Pass userName for events
       } else {
         // Already connected, just join the new room
@@ -161,6 +166,8 @@ class ClassroomService {
     // Cleanup when someone leaves
     _socket!.on('user-left', (id) => _removePeer(id));
     _socket!.on('mentor-left', (_) => onError?.call('Mentor has ended the session.'));
+    _socket!.on('session-terminated', (data) => onSessionTerminated?.call(data['message'] ?? 'Session Terminated.'));
+    _socket!.on('new-announcement', (data) => onAnnouncementReceived?.call(data as Map<String, dynamic>));
 
     // Chat & Engagement
     _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
@@ -301,6 +308,16 @@ class ClassroomService {
   // Messaging Helpers
   void sendMessage(String text, String userName) => 
     _socket?.emit('send-message', {'text': text, 'roomId': _roomId, 'userName': userName});
+    
+  Future<void> sendImage(XFile image, String userName) async {
+    final bytes = await image.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    _socket?.emit('send-image', {
+      'image': base64Image,
+      'roomId': _roomId,
+      'userName': userName,
+    });
+  }
     
   void raiseHand(String userName) => 
     _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName});

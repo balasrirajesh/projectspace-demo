@@ -14,11 +14,20 @@ const alumniChatRoutes = require('./alumni/routes/chatRoutes');
 const studentProfileRoutes = require('./student/routes/profileRoutes');
 const studentMentorshipRoutes = require('./student/routes/mentorshipRoutes');
 const studentChatRoutes = require('./student/routes/chatRoutes');
+const adminRoutes = require('./admin/routes/adminRoutes');
 
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
-  cors: { origin: "*" },
+  path: '/api/socket',
+  cors: { 
+    origin: (origin, callback) => {
+      // Allow all origins in dev, but mirror them back for CORS compliance with credentials
+      callback(null, true);
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  },
   pingTimeout: 60000,
   pingInterval: 25000,
   transports: ['websocket', 'polling']
@@ -26,7 +35,10 @@ const io = require('socket.io')(http, {
 
 // Middleware
 const corsOptions = {
-  origin: '*', // For development, allow all. In production, this can be restricted.
+  origin: (origin, callback) => {
+    // Mirror back the origin to satisfy 'credentials: true'
+    callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true
@@ -55,6 +67,7 @@ app.use('/api/alumni/chats', alumniChatRoutes);
 app.use('/api/student', studentProfileRoutes);
 app.use('/api/student/mentorship', studentMentorshipRoutes);
 app.use('/api/student/chats', studentChatRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root Health Check (Used by OpenShift Readiness/Liveness probes)
 app.get('/', (req, res) => {
@@ -196,6 +209,15 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('new-message', data);
   });
 
+  socket.on('send-image', (data) => {
+    // Relay image data (base64) to everyone in the room
+    io.to(data.roomId).emit('new-message', {
+      ...data,
+      type: 'image',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('raise-hand', (data) => {
     socket.to(data.roomId).emit('user-raised-hand', data);
   });
@@ -248,3 +270,5 @@ app.use((err, req, res, next) => {
 http.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Signaling Server ready on port ${PORT}`);
 });
+
+module.exports = { app, rooms, io };

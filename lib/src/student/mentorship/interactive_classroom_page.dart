@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/student/shared/services/classroom_service.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/notification_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:ui';
 
@@ -79,6 +81,28 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             content: Text("$from raised their hand! ✋"),
             backgroundColor: Colors.blueAccent,
             duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    };
+
+    _classroomService.onSessionTerminated = (message) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text("SUPERIOR TERMINATION"),
+            content: Text(message),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Leave classroom
+                }, 
+                child: const Text("Return to Dashboard")
+              ),
+            ],
           ),
         );
       }
@@ -322,13 +346,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       {
         'id': 'local', 
         'renderer': _localRenderer, 
-        'name': isStudent ? 'You (Student)' : 'You (Mentor)', 
+        'name': isStudent 
+            ? 'You (Student)' 
+            : (auth.role == UserRole.admin ? 'You (Faculty Host)' : 'You (Mentor)'), 
         'isMentor': !isStudent
       },
       ..._remoteRenderers.entries.map((e) => {
         'id': e.key, 
         'renderer': e.value, 
-        'name': isStudent ? 'Mentor' : 'Student', 
+        'name': isStudent ? (widget.roomId.startsWith('FACULTY-') ? 'Faculty Host' : 'Mentor') : 'Student', 
         'isMentor': isStudent // Inverted because it's the remote user
       }),
     ];
@@ -436,10 +462,17 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.amber,
+                            color: auth.role == UserRole.admin ? Colors.indigo : Colors.amber,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text("MENTOR", style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w900)),
+                          child: Text(
+                            auth.role == UserRole.admin ? "FACULTY HOST" : "MENTOR", 
+                            style: TextStyle(
+                              color: auth.role == UserRole.admin ? Colors.white : Colors.black, 
+                              fontSize: 9, 
+                              fontWeight: FontWeight.w900
+                            )
+                          ),
                         ),
                       const SizedBox(width: 8),
                       const CircleAvatar(
@@ -456,6 +489,16 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         );
       },
     );
+  }
+
+  void _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    
+    if (image != null) {
+      final auth = context.read<AuthProvider>();
+      await _classroomService.sendImage(image, auth.userName);
+    }
   }
 
   Widget _buildChatOverlay() {
@@ -492,6 +535,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isMe = msg['from'] == context.read<AuthProvider>().userName;
+                final isImage = msg['type'] == 'image';
                 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
@@ -507,22 +551,38 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blueAccent : Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(16),
-                            topRight: const Radius.circular(16),
-                            bottomLeft: Radius.circular(isMe ? 16 : 0),
-                            bottomRight: Radius.circular(isMe ? 0 : 16),
+                      if (isImage)
+                        Container(
+                          constraints: const BoxConstraints(maxWidth: 250),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.memory(
+                              base64Decode(msg['image']!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isMe ? Colors.blueAccent : Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(16),
+                              topRight: const Radius.circular(16),
+                              bottomLeft: Radius.circular(isMe ? 16 : 0),
+                              bottomRight: Radius.circular(isMe ? 0 : 16),
+                            ),
+                          ),
+                          child: Text(
+                            msg['text']!, 
+                            style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3)
                           ),
                         ),
-                        child: Text(
-                          msg['text']!, 
-                          style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3)
-                        ),
-                      ),
                     ],
                   ),
                 );
@@ -541,6 +601,10 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       color: Colors.grey[900],
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 22),
+            onPressed: _pickImage,
+          ),
           Expanded(
             child: TextField(
               controller: _chatController,

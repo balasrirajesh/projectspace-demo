@@ -37,20 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      Widget nextScreen = auth.role == UserRole.student 
-          ? const StudentMainLayout() 
-          : const MainLayout();
-
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
-            opacity: animation,
-            child: nextScreen,
-          ),
-        ),
-      );
+      // Navigation is now handled by the AuthDispatcher listening to the AuthProvider
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

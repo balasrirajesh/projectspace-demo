@@ -1,3 +1,4 @@
+import 'package:alumini_screen/src/student/shared/services/classroom_service.dart';
 import 'package:alumini_screen/src/alumni/chat/mentor_inbox_page.dart';
 import 'package:alumini_screen/src/alumni/dashboard/student_dashboard.dart';
 import 'package:alumini_screen/src/alumni/notifications/notifications_page.dart';
@@ -19,6 +20,51 @@ class StudentMainLayout extends StatefulWidget {
 
 class _StudentMainLayoutState extends State<StudentMainLayout> {
   int _selectedIndex = 0;
+  final ClassroomService _classroomService = ClassroomService();
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAnnouncementListener();
+  }
+
+  void _setupAnnouncementListener() {
+    _classroomService.onAnnouncementReceived = (data) {
+      if (mounted) {
+        _showAnnouncementDialog(data);
+      }
+    };
+  }
+
+  void _showAnnouncementDialog(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.campaign_rounded, color: Colors.indigo),
+            const SizedBox(width: 12),
+            const Text("Faculty Update"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(data['title'] ?? 'Urgent Broadcast', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 12),
+            Text(data['message'] ?? ''),
+            const SizedBox(height: 20),
+            Text("Sent: ${data['timestamp']?.toString().substring(11, 16) ?? 'Just now'}", style: const TextStyle(color: Colors.grey, fontSize: 10)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Acknowledged")),
+        ],
+      ),
+    );
+  }
 
   final List<Widget> _pages = [
     const StudentDashboard(),

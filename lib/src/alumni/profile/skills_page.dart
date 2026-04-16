@@ -9,8 +9,6 @@ class SkillsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
-        // Mock categorization for demo purposes
-        // Use user-defined skills, or empty list if none
         final skills = auth.skills;
         
         return Scaffold(
@@ -104,23 +102,23 @@ class SkillsPage extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: skills.map((skill) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(skill, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(width: 4),
-                  Icon(Icons.check_circle, size: 12, color: textColor.withOpacity(0.5)),
-                ],
-              ),
-            )).toList(),
+            children: skills.map((skill) => _buildSkillChip(skill, bgColor, textColor)).toList(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSkillChip(String label, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
       ),
     );
   }
@@ -131,19 +129,14 @@ class SkillsPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.blue.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.1)),
       ),
       child: Row(
         children: [
           const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.blue)),
-          ),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: Colors.blue))),
         ],
       ),
     );
   }
 }
-
-
