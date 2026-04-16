@@ -18,7 +18,7 @@ pipeline {
         // CONFIG
         OC_PROJECT = "23mh1a05n6-dev"
         OC_SERVER = "https://api.rm2.thpm.p1.openshiftapps.com:6443"
-        SIGNALING_URL = "https://signaling-server-23mh1a05n6-dev.apps.sandbox-m2.ll9k.p1.openshiftapps.com"
+        SIGNALING_URL = "https://signaling-server-23mh1a05n6-dev.apps.rm2.thpm.p1.openshiftapps.com"
     }
 
     stages {
