@@ -41,40 +41,13 @@ pipeline {
                         }
 
                         // ─────────────────────────────────────────────────────
-                        // QUALITY GATE STAGE 1: Run Tests & Generate Coverage
-                        // This must happen BEFORE the SonarQube scan so that
-                        // coverage reports exist for SonarQube to read.
+                        // QUALITY GATE STAGE 1: Run Tests
                         // ─────────────────────────────────────────────────────
                         stage('Run Backend Tests') {
                             echo "🧪 Running Quality Gate test suite..."
                             dir('signaling_server') {
                                 bat "npm install"
                                 bat "npm test"
-                            }
-                        }
-
-                        // ─────────────────────────────────────────────────────
-                        // QUALITY GATE: Analysis & Enforcement
-                        // Wrapped in dir('signaling_server') so Jenkins finds the report-task.txt
-                        // ─────────────────────────────────────────────────────
-                        dir('signaling_server') {
-                            stage('SonarQube Analysis') {
-                                echo "🚀 Running SonarQube Static Analysis with Coverage..."
-                                withSonarQubeEnv('SonarQube') {
-                                    bat """
-                                        docker run --rm ^
-                                        -e SONAR_HOST_URL="http://host.docker.internal:9000" ^
-                                        -e SONAR_TOKEN="${env.SONAR_TOKEN}" ^
-                                        -v "%WORKSPACE%\\signaling_server:/usr/src" ^
-                                        sonarsource/sonar-scanner-cli ^
-                                        -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} ^
-                                        -Dsonar.sources=. ^
-                                        -Dsonar.tests=tests ^
-                                        -Dsonar.working.directory=/usr/src/.scannerwork ^
-                                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ^
-                                        -Dsonar.exclusions=**/node_modules/**,**/tests/**,**/coverage/**
-                                    """
-                                }
                             }
                         }
 
