@@ -70,6 +70,7 @@ pipeline {
                                         -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} ^
                                         -Dsonar.sources=. ^
                                         -Dsonar.tests=tests ^
+                                        -Dsonar.working.directory=/usr/src/.scannerwork ^
                                         -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info ^
                                         -Dsonar.exclusions=**/node_modules/**,**/tests/**,**/coverage/**
                                     """
