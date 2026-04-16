@@ -76,22 +76,6 @@ pipeline {
                                     """
                                 }
                             }
-
-                            stage('Quality Gate') {
-                                echo "🛡️ Waiting for SonarQube Quality Gate result (Non-Blocking)..."
-                                try {
-                                    timeout(time: 5, unit: 'MINUTES') {
-                                        def qg = waitForQualityGate()
-                                        if (qg.status != 'OK') {
-                                            echo "⚠️ QUALITY GATE FAILED: Status=${qg.status}. Continuing as per non-blocking configuration."
-                                        } else {
-                                            echo "✅ Quality Gate PASSED — Code is production-ready!"
-                                        }
-                                    }
-                                } catch (Exception e) {
-                                    echo "⚠️ QUALITY GATE TIMEOUT: SonarQube didn't respond in 5 minutes. Continuing build anyway..."
-                                }
-                            }
                         }
 
                         stage('Clean & Build APK') {
