@@ -64,7 +64,7 @@ pipeline {
                             withSonarQubeEnv('SonarQube') {
                                 bat """
                                     docker run --rm ^
-                                    -e SONAR_HOST_URL="${env.SONAR_HOST_URL}" ^
+                                    -e SONAR_HOST_URL="http://host.docker.internal:9000" ^
                                     -e SONAR_TOKEN="${env.SONAR_TOKEN}" ^
                                     -v "%WORKSPACE%\\signaling_server:/usr/src" ^
                                     sonarsource/sonar-scanner-cli ^
