@@ -47,8 +47,8 @@ class _SignupScreenState extends State<SignupScreen> {
         pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
           opacity: animation,
           child: auth.role == UserRole.student 
-              ? const StudentMainLayout() 
-              : const MainLayout(),
+              ? StudentMainLayout() 
+              : MainLayout(),
         ),
       ),
       (Route<dynamic> route) => false,

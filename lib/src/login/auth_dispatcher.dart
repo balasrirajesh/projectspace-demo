@@ -40,8 +40,8 @@ class AuthDispatcher extends StatelessWidget {
 
         // 4. Fallback to Dashboard
         return auth.role == UserRole.student 
-            ? const StudentMainLayout() 
-            : const MainLayout();
+            ? StudentMainLayout() 
+            : MainLayout();
       },
     );
   }
