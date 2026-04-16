@@ -50,9 +50,18 @@ app.use(bodyParser.json());
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/alumni_app';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('🍃 Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log('🍃 Connected to MongoDB');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err);
+    // Explicitly fail if DB connection is required for 'the best' uptime
+    process.exit(1); 
+  }
+};
+
+connectDB();
 
 // API Routes
 app.use('/api/auth/login', loginRoutes);
@@ -262,8 +271,10 @@ app.use((err, req, res, next) => {
   }
 });
 
-http.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Signaling Server ready on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  http.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Signaling Server ready on port ${PORT}`);
+  });
+}
 
 module.exports = { app, rooms, io };

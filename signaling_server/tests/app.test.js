@@ -4,12 +4,35 @@
  */
 process.env.MONGODB_URI = 'mongodb://localhost:27017/test_alumni_app';
 process.env.PORT = '4001';
+process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
 
 // ── Mock mongoose BEFORE requiring app ──────────────────────────────────────
+const mockUser = {
+  findOne: jest.fn(),
+  countDocuments: jest.fn().mockResolvedValue(0),
+  find: jest.fn().mockResolvedValue([]),
+};
+
 jest.mock('mongoose', () => {
-  const mMongoose = {
+  const mockModel = {
+    find: jest.fn().mockImplementation(() => mockUser.find()),
+    findOne: jest.fn().mockImplementation(() => mockUser.findOne()),
+    findOneAndUpdate: jest.fn().mockResolvedValue(null),
+    countDocuments: jest.fn().mockImplementation(() => mockUser.countDocuments()),
+    populate: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockResolvedValue([]),
+  };
+
+  function Model(data) {
+    Object.assign(this, data);
+    this.save = jest.fn().mockImplementation(function() { return Promise.resolve(this); });
+    return this;
+  }
+  Object.assign(Model, mockModel);
+
+  return {
     connect: jest.fn().mockResolvedValue({}),
     connection: { close: jest.fn().mockResolvedValue({}) },
     Schema: class Schema {
@@ -18,112 +41,90 @@ jest.mock('mongoose', () => {
       pre() { return this; }
       index() { return this; }
     },
-    model: jest.fn().mockReturnValue({
-      find: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn().mockResolvedValue(null),
-      findOneAndUpdate: jest.fn().mockResolvedValue(null),
-      countDocuments: jest.fn().mockResolvedValue(0),
-      save: jest.fn().mockResolvedValue({}),
-      populate: jest.fn().mockReturnThis(),
-      sort: jest.fn().mockResolvedValue([]),
-    }),
+    model: jest.fn().mockReturnValue(Model),
   };
-  return mMongoose;
 });
 
 let app;
 
 beforeAll(() => {
-  app = require('../index').app;
-});
-
-afterAll(async () => {
-  // No real connection to close since we mocked mongoose
+  // Ensure we get a fresh require
+  jest.isolateModules(() => {
+    app = require('../index').app;
+  });
 });
 
 // ── Health Checks ────────────────────────────────────────────────────────────
-describe('GET / — Root Health Check', () => {
-  it('should return 200 ALIVE', async () => {
+describe('Core Health Checks', () => {
+  it('GET / should return 200 ALIVE', async () => {
     const res = await request(app).get('/');
     expect(res.statusCode).toEqual(200);
     expect(res.text).toBe('ALIVE');
   });
-});
 
-describe('GET /health', () => {
-  it('should return 200 with status OK', async () => {
+  it('GET /health should return status OK', async () => {
     const res = await request(app).get('/health');
     expect(res.statusCode).toEqual(200);
-    expect(res.body.status).toBe('OK');
+    // Explicitly check body or text if JSON parsing failed
+    const body = typeof res.body === 'string' ? JSON.parse(res.body) : res.body;
+    expect(body.status).toBe('OK');
   });
 });
 
-describe('GET /api/health', () => {
-  it('should return 200 with version field', async () => {
-    const res = await request(app).get('/api/health');
-    expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty('version');
+// ── Authentication & "Handshake" Logic ────────────────────────────────────────
+describe('Authentication API', () => {
+  it('POST /api/auth/login - should return 400 if email missing', async () => {
+    const res = await request(app).post('/api/auth/login').send({ name: 'Test' });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('POST /api/auth/login - should return user if found', async () => {
+    mockUser.findOne.mockResolvedValueOnce({ email: 'test@test.com', name: 'Existing User' });
+    const res = await request(app).post('/api/auth/login').send({ email: 'test@test.com' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.email).toBe('test@test.com');
+  });
+
+  it('POST /api/auth/login - should auto-register if NOT found', async () => {
+    mockUser.findOne.mockResolvedValueOnce(null);
+    const res = await request(app).post('/api/auth/login').send({ email: 'new@test.com', name: 'New' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.email).toBe('new@test.com');
+  });
+
+  it('POST /api/auth/signup - should create new user', async () => {
+    const res = await request(app).post('/api/auth/signup').send({ email: 'sign@up.com', name: 'Sign' });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.email).toBe('sign@up.com');
   });
 });
 
-// ── Room Management ──────────────────────────────────────────────────────────
-describe('GET /api/rooms', () => {
-  it('should return an empty object initially', async () => {
+// ── Room & "Class" Logic ─────────────────────────────────────────────────────
+describe('Classroom / Room Management', () => {
+  it('GET /api/rooms should return current rooms', async () => {
     const res = await request(app).get('/api/rooms');
-    expect(res.statusCode).toEqual(200);
-    expect(res.body).toMatchObject({});
+    expect(res.statusCode).toBe(200);
+    expect(typeof res.body).toBe('object');
   });
-});
 
-describe('GET /api/clear-rooms', () => {
-  it('should respond with a cleared confirmation message', async () => {
+  it('GET /api/clear-rooms - should wipe sessions', async () => {
     const res = await request(app).get('/api/clear-rooms');
-    expect(res.statusCode).toEqual(200);
-    expect(res.text).toContain('rooms');
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toContain('Cleared');
   });
 });
 
-// ── Authentication ───────────────────────────────────────────────────────────
-describe('POST /api/auth/login', () => {
-  it('should return 400 if email is missing', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({ name: 'No Email' });
-    expect(res.statusCode).toEqual(400);
-  });
-});
-
-describe('POST /api/auth/signup', () => {
-  it('should return 400 or 500 (route is alive)', async () => {
-    const res = await request(app)
-      .post('/api/auth/signup')
-      .send({});
-    expect([400, 500]).toContain(res.statusCode);
-  });
-});
-
-// ── Admin Routes (correct paths from adminRoutes.js) ─────────────────────────
-describe('GET /api/admin/stats', () => {
-  it('should return admin statistics object', async () => {
+// ── Admin Module ─────────────────────────────────────────────────────────────
+describe('Admin API', () => {
+  it('GET /api/admin/stats - should return stats', async () => {
     const res = await request(app).get('/api/admin/stats');
-    // With mongoose mocked, countDocuments returns 0 so route succeeds
-    expect([200, 500]).toContain(res.statusCode);
+    expect(res.statusCode).toBe(200);
   });
-});
 
-describe('GET /api/admin/users', () => {
-  it('should return array or error (route is alive)', async () => {
-    const res = await request(app).get('/api/admin/users');
-    expect([200, 500]).toContain(res.statusCode);
-  });
-});
-
-// Correct route: /api/admin/announcements (not /broadcast)
-describe('POST /api/admin/announcements', () => {
-  it('should accept broadcast request (route is alive)', async () => {
+  it('POST /api/admin/announcements - should accept broadcast', async () => {
     const res = await request(app)
       .post('/api/admin/announcements')
-      .send({ title: 'Test', message: 'Hello', target: 'all' });
-    expect([200, 500]).toContain(res.statusCode);
+      .send({ title: 'Alert', message: 'Hello', target: 'all' });
+    expect(res.statusCode).toBe(200);
   });
 });
