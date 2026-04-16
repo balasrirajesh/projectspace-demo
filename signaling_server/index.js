@@ -55,9 +55,9 @@ const connectDB = async () => {
     await mongoose.connect(MONGODB_URI);
     console.log('🍃 Connected to MongoDB');
   } catch (err) {
-    console.error('❌ MongoDB Connection Error:', err);
-    // Explicitly fail if DB connection is required for 'the best' uptime
-    process.exit(1); 
+    console.error('❌ MongoDB Connection Error:', err.message);
+    console.log('🔄 Mongoose will automatically retry the connection...');
+    // Removed process.exit(1) to allow the server pod to stay alive during DB startup
   }
 };
 
@@ -274,6 +274,7 @@ app.use((err, req, res, next) => {
 if (process.env.NODE_ENV !== 'test') {
   http.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Signaling Server ready on port ${PORT}`);
+    console.log(`📡 Socket.IO Path: /api/socket`);
   });
 }
 

@@ -20,6 +20,8 @@ metadata:
   name: signaling-server
   labels:
     app: signaling-server
+  annotations:
+    haproxy.router.openshift.io/timeout: 60s
 spec:
   to:
     kind: Service
