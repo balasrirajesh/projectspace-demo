@@ -79,13 +79,12 @@ class ClassroomService {
       // 2. Setup or Reuse Socket.io
       if (_socket == null || !_socket!.connected) {
         _socket = io.io(serverUrl, io.OptionBuilder()
-            .setTransports(['websocket', 'polling'])
+            .setTransports(['polling', 'websocket']) 
             .setPath('/api/socket')
             .setQuery({'userName': userName})
             .enableAutoConnect()
             .setReconnectionAttempts(10)
             .setReconnectionDelay(3000)
-            .setExtraHeaders({'Connection': 'upgrade', 'Upgrade': 'websocket'})
             .build());
         
         _socket?.io.timeout = 20000;
