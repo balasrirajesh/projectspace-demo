@@ -96,29 +96,25 @@ app.get('/api/clear-rooms', (req, res) => {
   res.send(`Cleared ${roomIds.length} rooms. Dashboard will update on next client connect.`);
 });
 
-const broadcastRoomList = () => {
-  const roomList = Object.keys(rooms).map(id => ({
+const getFormattedRoomList = () => {
+  return Object.keys(rooms).map(id => ({
     id,
     title: rooms[id].title || id,
     isLive: true,
     attendees: rooms[id].students.length,
     startTime: rooms[id].startTime
   }));
-  io.emit('room-list', roomList);
+};
+
+const broadcastRoomList = () => {
+  io.emit('room-list', getFormattedRoomList());
 };
 
 io.on('connection', (socket) => {
   console.log(`[CONNECT] User: ${socket.id}`);
 
   // Send initial room list to new connection
-  const initialRooms = Object.keys(rooms).map(id => ({
-    id,
-    title: rooms[id].title || id,
-    isLive: true,
-    attendees: rooms[id].students.length,
-    startTime: rooms[id].startTime
-  }));
-  socket.emit('room-list', initialRooms);
+  socket.emit('room-list', getFormattedRoomList());
 
   // Join Room: { roomId, role: 'mentor' | 'student', title }
   socket.on('join-room', (data) => {
@@ -261,8 +257,7 @@ io.on('connection', (socket) => {
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
   if (!res.headersSent) {
-    // Ensure CORS headers are included even in error responses
-    res.header('Access-Control-Allow-Origin', '*');
+    // Rely on the 'cors' middleware settings instead of manual overrides
     res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 });
