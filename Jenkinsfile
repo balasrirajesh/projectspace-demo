@@ -140,8 +140,8 @@ pipeline {
     post {
         always {
             echo 'Pipeline execution finished.'
-            // Archive coverage reports for history
-            junit allowEmptyResults: true, testResults: 'signaling_server/coverage/*.xml'
+            // Archive the JUnit XML produced by jest-junit
+            junit allowEmptyResults: true, testResults: 'signaling_server/test-results/junit.xml'
         }
         success {
             echo '✅ Full DevOps Pipeline completed successfully! Quality Gate PASSED.'

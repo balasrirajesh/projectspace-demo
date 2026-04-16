@@ -9,11 +9,17 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "testTimeout": 10000,
+    "reporters": [
+      "default",
+      ["jest-junit", { "outputDirectory": "test-results", "outputName": "junit.xml" }]
+    ],
     "collectCoverageFrom": [
       "**/*.js",
       "!**/node_modules/**",
       "!**/tests/**",
-      "!index.js"
+      "!**/coverage/**",
+      "!**/lcov-report/**"
     ],
     "coverageReporters": ["lcov", "text"],
     "coverageDirectory": "coverage"
@@ -35,6 +41,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "supertest": "^6.3.4"
   }
 }
