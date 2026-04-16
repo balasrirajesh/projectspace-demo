@@ -87,9 +87,9 @@ const PORT = process.env.PORT || 3000;
 // Version: 1.0.3 - Explicit Wipe Support [2026-04-13]
 const rooms = {};
 
-// Maintenance endpoints
-app.get('/rooms', (req, res) => res.json(rooms));
-app.get('/clear-rooms', (req, res) => {
+// Maintenance endpoints (under /api for production proxy support)
+app.get('/api/rooms', (req, res) => res.json(rooms));
+app.get('/api/clear-rooms', (req, res) => {
   const roomIds = Object.keys(rooms);
   roomIds.forEach(id => delete rooms[id]);
   console.log(`[MAINTENANCE] Cleared ${roomIds.length} rooms`);

@@ -1,8 +1,6 @@
 const User = require('../../core/models/User');
 const MentorshipRequest = require('../../core/models/MentorshipRequest');
-// We require index.js at runtime to avoid circular dependency issues
-// or we can just pass the rooms object. Let's use a safe requirement.
-const server = require('../../index');
+// We require index.js at runtime inside handlers to avoid circular dependency issues
 
 exports.getStats = async (req, res) => {
     try {
@@ -66,7 +64,7 @@ exports.updateUserStatus = async (req, res) => {
 exports.broadcastAnnouncement = async (req, res) => {
     try {
         const { title, message, target } = req.body;
-        const { io } = server;
+        const { io } = require('../../index'); // Runtime require to avoid circularity
 
         console.log(`[ADMIN BROADCAST] To: ${target} | ${title}: ${message}`);
 
@@ -89,7 +87,7 @@ exports.broadcastAnnouncement = async (req, res) => {
 exports.terminateSession = async (req, res) => {
     try {
         const { roomId } = req.params;
-        const { rooms, io } = server;
+        const { rooms, io } = require('../../index'); // Runtime require to avoid circularity
 
         if (rooms && rooms[roomId]) {
             console.log(`[ADMIN SUPERIOR] Terminating room: ${roomId}`);

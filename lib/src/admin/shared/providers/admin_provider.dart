@@ -70,9 +70,8 @@ class AdminProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      // The rooms list is at the root or /rooms endpoint in the signaling server
-      final baseUrl = AuthProvider.getBaseUrl(''); 
-      final roomsUrl = baseUrl.replaceFirst('/api/', '/rooms');
+      // Standardizing to /api/rooms for production proxy support
+      final roomsUrl = AuthProvider.getBaseUrl('rooms'); 
       
       final response = await http.get(Uri.parse(roomsUrl));
       if (response.statusCode == 200) {
