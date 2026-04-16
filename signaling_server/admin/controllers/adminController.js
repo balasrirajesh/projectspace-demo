@@ -9,13 +9,18 @@ exports.getStats = async (req, res) => {
         const verifiedAlumni = await User.countDocuments({ role: 'mentor', status: 'verified' });
         const pendingRequests = await User.countDocuments({ status: 'pending' });
 
+        // Dynamic counts
+        const totalConnections = await MentorshipRequest.countDocuments();
+        const { rooms } = require('../../index');
+        const activeSessions = rooms ? Object.keys(rooms).length : 0;
+
         res.json({
             totalStudents,
             totalAlumni,
             verifiedAlumni,
             pendingRequests,
-            totalConnections: 320, 
-            activeSessions: 12     
+            totalConnections, 
+            activeSessions     
         });
     } catch (err) {
         res.status(500).json({ message: err.message });

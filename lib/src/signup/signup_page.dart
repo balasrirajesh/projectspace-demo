@@ -33,21 +33,22 @@ class _SignupScreenState extends State<SignupScreen> {
 
     // Step 1: Initial Signup & Force Setup View
     final auth = context.read<AuthProvider>();
-    auth.enableSignupMode();
+    auth.enableSignupMode(email);
     auth.updateProfile(
       name: username,
       collegeName: college,
     );
 
-    // Initial status is automatically set to 'incomplete' in AuthProvider
-    
+    // Navigation is now handled based on the assigned role
     Navigator.pushAndRemoveUntil(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
         pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
           opacity: animation,
-          child: const MainLayout(),
+          child: auth.role == UserRole.student 
+              ? const StudentMainLayout() 
+              : const MainLayout(),
         ),
       ),
       (Route<dynamic> route) => false,

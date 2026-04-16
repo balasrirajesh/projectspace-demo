@@ -74,11 +74,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    "System operational • Monitoring 2,450 entities",
-                    style: TextStyle(color: Colors.blueGrey[400], fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
+                Consumer<AdminProvider>(
+                  builder: (context, admin, _) => Flexible(
+                    child: Text(
+                      "System operational • Monitoring ${admin.totalStudents + admin.totalAlumni} active users",
+                      style: TextStyle(color: Colors.blueGrey[400], fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],

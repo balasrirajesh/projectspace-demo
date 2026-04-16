@@ -47,10 +47,12 @@ void main() async {
     ChangeNotifierProvider(create: (_) => UIProvider()),
     ChangeNotifierProvider(create: (_) => AdminProvider()),
 
-    // MentorshipProvider depends on ChatProvider
-    ChangeNotifierProxyProvider<ChatProvider, MentorshipProvider>(
+    // MentorshipProvider depends on ChatProvider and AuthProvider for ID-aware fetching
+    ChangeNotifierProxyProvider2<ChatProvider, AuthProvider, MentorshipProvider>(
       create: (_) => MentorshipProvider(),
-      update: (_, chat, mentorship) => (mentorship ?? MentorshipProvider())..setChatProvider(chat),
+      update: (_, chat, auth, mentorship) => (mentorship ?? MentorshipProvider())
+        ..setChatProvider(chat)
+        ..syncWithAuth(auth),
     ),
   ];
 

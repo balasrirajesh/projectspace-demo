@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:alumini_screen/src/alumni/mentorship/interactive_classroom_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
+import 'package:http/http.dart' as http;
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -12,6 +14,35 @@ class StudentDashboard extends StatefulWidget {
 
 class _StudentDashboardState extends State<StudentDashboard> {
   final TextEditingController _roomIdController = TextEditingController();
+  List<dynamic> _mentors = [];
+  bool _isLoadingMentors = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMentors();
+  }
+
+  Future<void> _fetchMentors() async {
+    try {
+      final url = AuthProvider.getBaseUrl('/alumni/list');
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        setState(() {
+          _mentors = json.decode(response.body);
+          _isLoadingMentors = false;
+        });
+      } else {
+        throw Exception('Failed to load mentors');
+      }
+    } catch (e) {
+      debugPrint('Error fetching mentors: $e');
+      setState(() {
+        _isLoadingMentors = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -302,14 +333,33 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildMentorList() {
-    final mentors = [
-      {"name": "Dr. Aris", "field": "Machine Learning", "availability": "Now"},
-      {"name": "Sarah Jenkins", "field": "UI/UX Design", "availability": "in 2 hrs"},
-      {"name": "Michael Chen", "field": "Backend Systems", "availability": "Tomorrow"},
-    ];
+    if (_isLoadingMentors) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: CircularProgressIndicator(),
+      ));
+    }
+
+    if (_mentors.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text("No mentors available at the moment.", style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
 
     return Column(
-      children: mentors.map((m) {
+      children: _mentors.map((m) {
+        final name = m['name'] ?? 'Unknown Mentor';
+        final field = m['techField'] ?? m['field'] ?? 'Expert';
+        final availability = m['status'] ?? m['availability'] ?? 'Available';
+        final isOnline = availability.toString().toLowerCase() == 'online' || availability == 'Now';
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -322,28 +372,28 @@ class _StudentDashboardState extends State<StudentDashboard> {
             children: [
               CircleAvatar(
                 backgroundColor: Colors.blue.withOpacity(0.1),
-                child: Text(m['name']![0], style: const TextStyle(color: Colors.blue)),
+                child: Text(name[0], style: const TextStyle(color: Colors.blue)),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(m['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(m['field']!, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(field, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: m['availability'] == "Now" ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                  color: isOnline ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  m['availability']!,
+                  availability,
                   style: TextStyle(
-                    color: m['availability'] == "Now" ? Colors.green : Colors.grey[600],
+                    color: isOnline ? Colors.green : Colors.grey[600],
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),

@@ -204,15 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (!auth.isLoading)
                     OutlinedButton(
                       onPressed: () async {
-                        final success = await auth.login(_emailController.text, "guest", allowDemoFallback: true);
-                        if (success && mounted) {
-                           Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => 
-                              auth.role == UserRole.student ? const StudentMainLayout() : const MainLayout()
-                            ),
-                          );
-                        }
+                        await auth.login(_emailController.text, "guest", allowDemoFallback: true);
                       },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.primary.withOpacity(0.2)),

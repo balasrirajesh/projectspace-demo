@@ -5,7 +5,7 @@ import 'package:alumini_screen/src/alumni/profile/profile_setup_page.dart';
 import 'package:alumini_screen/src/alumni/shared/core/theme/app_theme.dart';
 import 'package:alumini_screen/src/alumni/shared/core/widgets/floating_navbar.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
-import 'package:alumini_screen/src/student/dashboard/dashboard_page.dart';
+import 'package:alumini_screen/src/alumni/dashboard/dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';

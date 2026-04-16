@@ -13,6 +13,7 @@ class MentorshipProvider with ChangeNotifier {
   final PersistenceService _persistence = PersistenceService();
   final ClassroomService _classroomService = ClassroomService();
   ChatProvider? _chatProvider;
+  AuthProvider? _authProvider;
   StreamSubscription? _subscription;
 
   bool _isLoading = false;
@@ -36,6 +37,38 @@ class MentorshipProvider with ChangeNotifier {
   /// Sets the [ChatProvider] instance to be used for creating chat sessions.
   void setChatProvider(ChatProvider chatProvider) {
     _chatProvider = chatProvider;
+  }
+
+  /// Syncs with [AuthProvider] to fetch identity-specific data.
+  void syncWithAuth(AuthProvider auth) {
+    bool userIdChanged = _authProvider?.userId != auth.userId;
+    _authProvider = auth;
+    
+    if (userIdChanged && auth.userId != null) {
+      _fetchLiveData();
+    }
+  }
+
+  Future<void> _fetchLiveData() async {
+    if (_authProvider == null || _authProvider!.userId == null) return;
+    
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      if (_authProvider!.role == UserRole.mentor) {
+        await _service.fetchRequests(mentorId: _authProvider!.userId);
+      } else {
+        await _service.fetchRequests(studentId: _authProvider!.userId);
+      }
+      _allRequests = _service.getRequests();
+      await saveToLocal();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
   
   MentorshipProvider() {
@@ -68,11 +101,11 @@ class MentorshipProvider with ChangeNotifier {
       useMedia: false, // Don't start cam just for the room list updates
     );
 
-    // 2. Load mentorship requests
+    // 2. Load mentorship requests (Initial load from local, then sync with auth)
     await loadFromLocal();
-    await _service.seedData();
-    _allRequests = _service.getRequests();
-    await saveToLocal();
+    if (_authProvider?.userId != null) {
+      await _fetchLiveData();
+    }
     
     _subscription = _service.requestsStream.listen((updatedRequests) {
       _allRequests = updatedRequests;

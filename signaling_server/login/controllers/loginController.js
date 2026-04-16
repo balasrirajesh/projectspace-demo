@@ -16,13 +16,31 @@ exports.login = async (req, res) => {
         
         if (!user) {
             console.log(`[AUTH] Auto-registering new user: ${email}`);
+            
+            // AUTOMATED ROLE DETECTION
+            let role = 'student';
+            if (email.endsWith('@admin.com')) {
+                role = 'admin';
+            } else if (email.endsWith('@alumin.com')) {
+                role = 'mentor';
+            } else if (email.endsWith('@stud.com')) {
+                role = 'student';
+            }
+
             user = new User({
                 id: uuidv4(),
                 email: email,
                 name: name || email.split('@')[0],
+                role: role,
+                status: role === 'admin' ? 'verified' : 'incomplete'
             });
             await user.save();
-            console.log('[AUTH] New user saved successfully');
+            console.log(`[AUTH] New ${role} account saved successfully`);
+        } else if (name && name !== user.name) {
+            // SYNC: Update name if it has changed in the Flutter app
+            user.name = name;
+            await user.save();
+            console.log(`[AUTH] Updated name for user: ${email}`);
         }
         
         res.status(200).json(user);

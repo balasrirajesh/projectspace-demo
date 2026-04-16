@@ -22,6 +22,19 @@ exports.updateProfile = async (req, res) => {
             { $set: updateData },
             { new: true, upsert: true }
         );
+
+        // SYNC: Update the core User document for balanced analytics
+        await User.findOneAndUpdate(
+            { id: userId },
+            { 
+                $set: { 
+                    branch: updateData.branch,
+                    year: updateData.year,
+                    skills: updateData.skills,
+                    name: updateData.name
+                } 
+            }
+        );
         
         res.status(200).json(student);
     } catch (err) {

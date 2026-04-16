@@ -9,7 +9,7 @@ const mentorshipRequestSchema = new mongoose.Schema({
     preferredSchedule: { type: String },
     status: { 
         type: String, 
-        enum: ['pending', 'accepted', 'rejected', 'completed'], 
+        enum: ['pending', 'accepted', 'rejected', 'ended'], 
         default: 'pending' 
     }
 }, { timestamps: true });

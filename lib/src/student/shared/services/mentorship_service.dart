@@ -26,9 +26,13 @@ class MentorshipService {
   Stream<List<MentorshipRequest>> get requestsStream => _controller.stream;
   
   /// Fetches all requests from the backend and updates the stream.
-  Future<void> fetchRequests() async {
+  Future<void> fetchRequests({String? studentId, String? mentorId}) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/requests"));
+      String url = "$baseUrl/requests";
+      if (studentId != null) url += "?studentId=$studentId";
+      else if (mentorId != null) url += "?mentorId=$mentorId";
+
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _requests.clear();
@@ -68,7 +72,9 @@ class MentorshipService {
   Future<void> updateRequestStatus(String id, MentorshipStatus status) async {
     try {
       final response = await http.patch(
-        Uri.parse("$baseUrl/requests/$id/status?status=${status.name}"),
+        Uri.parse("$baseUrl/requests/$id/status"),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({"status": status.name}),
       );
       if (response.statusCode == 200) {
         await fetchRequests();

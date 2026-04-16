@@ -15,6 +15,8 @@ const studentProfileRoutes = require('./student/routes/profileRoutes');
 const studentMentorshipRoutes = require('./student/routes/mentorshipRoutes');
 const studentChatRoutes = require('./student/routes/chatRoutes');
 const adminRoutes = require('./admin/routes/adminRoutes');
+const coreMentorshipRoutes = require('./core/routes/mentorshipRoutes');
+const ChatMessage = require('./core/models/ChatMessage');
 
 const app = express();
 const http = require('http').createServer(app);
@@ -77,6 +79,7 @@ app.use('/api/student', studentProfileRoutes);
 app.use('/api/student/mentorship', studentMentorshipRoutes);
 app.use('/api/student/chats', studentChatRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/mentorship', coreMentorshipRoutes);
 
 // Root Health Check (Used by OpenShift Readiness/Liveness probes)
 app.get('/', (req, res) => {
@@ -149,6 +152,22 @@ io.on('connection', (socket) => {
       };
     }
 
+    // HANDSHAKE: Send historical messages to the joining user
+    ChatMessage.find({ sessionId: roomId })
+      .sort({ timestamp: 1 })
+      .limit(50)
+      .then(history => {
+        if (history.length > 0) {
+          socket.emit('chat-history', history.map(h => ({
+            text: h.text,
+            userName: h.senderId,
+            timestamp: h.timestamp,
+            id: h._id.toString()
+          })));
+        }
+      })
+      .catch(err => console.error('[ROOM HISTORY] Failed to load messages:', err));
+
     if (data.role === 'mentor') {
       const wasEmpty = !rooms[roomId].mentorSocketId;
       rooms[roomId].mentorSocketId = socket.id;
@@ -210,8 +229,27 @@ io.on('connection', (socket) => {
   });
 
   // Interaction Events
-  socket.on('send-message', (data) => {
-    io.to(data.roomId).emit('new-message', data);
+  socket.on('send-message', async (data) => {
+    try {
+      // PERSISTENCE: Save message to DB for history
+      const message = new ChatMessage({
+        sessionId: data.roomId,
+        senderId: data.userName || 'Unknown',
+        text: data.text,
+        timestamp: new Date()
+      });
+      await message.save();
+      
+      io.to(data.roomId).emit('new-message', {
+        ...data,
+        id: message._id.toString(),
+        timestamp: message.timestamp
+      });
+    } catch (err) {
+      console.error('[CHAT ERROR] Failed to save message:', err);
+      // Fallback: broadcast anyway to keep live session moving
+      io.to(data.roomId).emit('new-message', data);
+    }
   });
 
   socket.on('send-image', (data) => {

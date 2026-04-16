@@ -189,68 +189,75 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     _isDemoMode = false;
-    _role = email.endsWith('@stud.com') 
-        ? UserRole.student 
-        : (email.endsWith('@admin.com') ? UserRole.admin : UserRole.mentor);
+    _role = email.endsWith('@admin.com') 
+        ? UserRole.admin 
+        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     notifyListeners();
 
     try {
-      // Logic for using backend if available can go here
-      // For now, we utilize the demo fallback immediately to avoid network blocking
-      return _fallbackToDemo(email);
-      /*
       final response = await http
           .post(
             Uri.parse('$baseUrl/login'),
             headers: {'Content-Type': 'application/json'},
-            body: json.encode({'email': email, 'password': password}),
+            body: json.encode({'email': email, 'password': password, 'name': email.split('@')[0]}),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _userId = data['id'];
         _userName = data['name'] ?? 'User';
+        _email = data['email'] ?? email;
         _techField = data['techField'] ?? _techField;
         _company = data['company'] ?? _company;
-        _yoe = data['yoe'] ?? _yoe;
-        _fullName = data['fullName'] ?? '';
-        _collegeName = data['collegeName'] ?? '';
+        _yoe = data['yoe'] ?? '0';
         _status = _mapStatus(data['status']);
+        
+        // SYNC ROLES: Ensure app matches backend's assigned role
+        final backendRole = data['role'];
+        if (backendRole == 'admin') {
+          _role = UserRole.admin;
+        } else if (backendRole == 'mentor') {
+          _role = UserRole.mentor;
+        } else {
+          _role = UserRole.student;
+        }
+
         _isDemoMode = false;
         notifyListeners();
         return true;
       } else {
         if (allowDemoFallback && email.isNotEmpty) return _fallbackToDemo(email);
-        _error = 'Server error (${response.statusCode})';
+        _error = 'Auth failed (${response.statusCode})';
         return false;
       }
-      */
     } catch (e) {
       if (allowDemoFallback && email.isNotEmpty) return _fallbackToDemo(email);
-      _error = 'Connection error: $e';
+      _error = 'Connection failed. Check signaling server status.';
       return false;
     } finally {
       _isLoading = false;
-      _forceSetup = false; // Never force setup on login
+      _forceSetup = false; 
       notifyListeners();
     }
   }
 
   UserStatus _mapStatus(String? status) {
-    switch (status) {
-      case 'VERIFIED': return UserStatus.verified;
-      case 'PENDING': return UserStatus.pending;
-      case 'REJECTED': return UserStatus.rejected;
+    if (status == null) return UserStatus.incomplete;
+    final lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
+      case 'verified': return UserStatus.verified;
+      case 'pending': return UserStatus.pending;
+      case 'rejected': return UserStatus.rejected;
       default: return UserStatus.incomplete;
     }
   }
 
   bool _fallbackToDemo(String email) {
     _isDemoMode = true;
-    _role = email.endsWith('@stud.com') 
-        ? UserRole.student 
-        : (email.endsWith('@admin.com') ? UserRole.admin : UserRole.mentor);
+    _role = email.endsWith('@admin.com') 
+        ? UserRole.admin 
+        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     _userId = '${DateTime.now().millisecondsSinceEpoch}';
     _email = email;
     String rawName = email.contains('@') ? email.split('@')[0] : email;
@@ -285,6 +292,7 @@ class AuthProvider with ChangeNotifier {
     String? githubUrl,
     String? portfolioUrl,
   }) async {
+    // 1. Update local state
     if (name != null) _userName = name;
     if (fullName != null) _fullName = fullName;
     if (phoneNumber != null) _phoneNumber = phoneNumber;
@@ -299,17 +307,60 @@ class AuthProvider with ChangeNotifier {
     if (linkedInUrl != null) _linkedInUrl = linkedInUrl;
     if (githubUrl != null) _githubUrl = githubUrl;
     if (portfolioUrl != null) _portfolioUrl = portfolioUrl;
-    
+
     if (_status == UserStatus.incomplete) {
       _status = UserStatus.pending;
-      _forceSetup = false; // Setup complete
+      _forceSetup = false; 
     }
     notifyListeners();
+
+    // 2. Persist to Backend
+    if (_userId != null && !_isDemoMode) {
+      final module = (_role == UserRole.mentor) ? 'alumni' : 'student';
+      final url = getBaseUrl('$module/profile/$_userId');
+      
+      try {
+        await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'name': _userName,
+            'fullName': _fullName,
+            'phone': _phoneNumber,
+            'branch': _branch,
+            'year': _graduationYear,
+            'bio': _bio,
+            'techField': _techField,
+            'company': _company,
+            'skills': _skills,
+            'socialLinks': {
+              'linkedin': _linkedInUrl,
+              'github': _githubUrl,
+              'portfolio': _portfolioUrl,
+            }
+          }),
+        ).timeout(const Duration(seconds: 5));
+        dev.log('💾 [AUTH] Profile persisted to backend ($module)');
+      } catch (e) {
+        dev.log('⚠️ [AUTH] Failed to persist profile: $e');
+      }
+    }
   }
 
   Future<void> submitForVerification() async {
     _status = UserStatus.pending;
     notifyListeners();
+
+    if (_userId != null && !_isDemoMode && _role == UserRole.mentor) {
+      final url = getBaseUrl('alumni/verify/$_userId');
+      try {
+        await http.post(Uri.parse(url)).timeout(const Duration(seconds: 5));
+        dev.log('🛡️ [AUTH] Verification request submitted to backend');
+      } catch (e) {
+        dev.log('⚠️ [AUTH] Verification submission failed: $e');
+      }
+    }
+
     if (_isDemoMode) {
       Future.delayed(const Duration(seconds: 15), () {
         _status = UserStatus.verified;
@@ -329,9 +380,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void enableSignupMode() {
+  void enableSignupMode(String email) {
     _forceSetup = true;
     _status = UserStatus.incomplete;
+    _email = email;
+    _userId = "TEMP_${DateTime.now().millisecondsSinceEpoch}";
+    _role = email.endsWith('@admin.com') 
+        ? UserRole.admin 
+        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     notifyListeners();
   }
 }
