@@ -87,14 +87,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    _classroomService.onMentorJoined = (mentorId, userName) {
+    _classroomService.onMentorJoined = (mentorId, userName, {String? role}) {
       if (mounted) {
+        final hostLabel = (role == 'admin') ? 'Faculty' : 'Alumnus';
         setState(() {
-          _connectionState = "Mentor ($userName) Joined! Connecting...";
+          _connectionState = "$hostLabel ($userName) Joined! Connecting...";
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("👨‍🏫 Mentor $userName has joined the session!"),
+            content: Text("👨‍🏫 $hostLabel $userName has joined the session!"),
             backgroundColor: Colors.green,
           ),
         );
