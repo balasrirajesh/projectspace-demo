@@ -149,19 +149,15 @@ io.on('connection', (socket) => {
           title: 'Global Lobby',
           startTime: new Date().toLocaleTimeString()
         };
-      } else if (role !== 'mentor' && role !== 'admin') {
-        console.log(`[ROOM] Denied: ${role} ${socket.id} attempted to join non-existent room ${roomId}`);
-        socket.emit('error', 'Class has not started yet. Please wait for the Alumni/Mentor to join.');
-        return;
-      }
-      
-      if (!rooms[roomId]) {
-        rooms[roomId] = {
-          participants: {},
-          title: title,
-          startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-      }
+    // 0. Ensure room exists (Lazy initialization)
+    if (!rooms[roomId]) {
+      console.log(`[ROOM] Initializing room: ${roomId}`);
+      rooms[roomId] = {
+        participants: {},
+        title: title || roomId,
+        startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    }
     }
 
     // HANDSHAKE: Send historical messages to the joining user
@@ -280,13 +276,15 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('participant-left', socket.id);
 
       if (isHost) {
-        // If an Admin leaves or explicitly ends, we can choose to delete.
-        // For now, if no hosts are left, delete the room.
+        // SUPERIOR TERMINATION: If leaving host is ADMIN, end room for EVERYONE.
+        // Otherwise (Alumni), only end if NO other hosts (Admin/Alumni) are left.
         const remainingHosts = Object.values(rooms[roomId].participants).filter(p => p.role === 'mentor' || p.role === 'admin');
-        if (remainingHosts.length === 0) {
+        const isSelfAdmin = participant.role === 'admin';
+
+        if (isSelfAdmin || remainingHosts.length === 0) {
           socket.to(roomId).emit('mentor-left');
           delete rooms[roomId];
-          console.log(`[ROOM] Session ended: ${roomId}`);
+          console.log(`[ROOM] Session ${isSelfAdmin ? 'Terminated by Admin' : 'Ended'}: ${roomId}`);
         }
       }
       broadcastRoomList();
@@ -305,10 +303,15 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('participant-left', socket.id);
 
       if (isHost) {
+        // SUPERIOR LOGIC: If an Admin leaves, forcefully end for EVERYONE.
+        // If an Alumnus leaves, only end if no other hosts are present.
         const remainingHosts = Object.values(rooms[roomId].participants).filter(p => p.role === 'mentor' || p.role === 'admin');
-        if (remainingHosts.length === 0) {
+        const isSelfAdmin = participant.role === 'admin';
+
+        if (isSelfAdmin || remainingHosts.length === 0) {
           socket.to(roomId).emit('mentor-left');
           delete rooms[roomId];
+          console.log(`[ROOM] Session ${isSelfAdmin ? 'Terminated by Admin' : 'Ended'}: ${roomId}`);
         }
       }
       broadcastRoomList();

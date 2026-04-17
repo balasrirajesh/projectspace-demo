@@ -53,8 +53,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       if (mounted) {
         setState(() {
           _remoteRenderers[id] = renderer;
-          _connectionState = "Connected: ${id.substring(0, 4)} joined";
-          // Change to "Session Active" if we want a generic one
           _connectionState = "Session Active";
         });
       }
@@ -87,28 +85,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    _classroomService.onSessionTerminated = (message) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text("SUPERIOR TERMINATION"),
-            content: Text(message),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Leave classroom
-                }, 
-                child: const Text("Return to Dashboard")
-              ),
-            ],
-          ),
-        );
-      }
-    };
-
     _classroomService.onMentorJoined = (mentorId, userName, {role}) {
       if (mounted) {
         final hostLabel = (role == 'admin') ? 'Faculty' : 'Alumnus';
@@ -124,15 +100,16 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    // Security check: only users with mentor role in AuthProvider can be mentors
-    final classroomRole = auth.role == UserRole.student
-        ? ClassroomRole.student
-        : ClassroomRole.mentor;
+    final classroomRole = (auth.role == UserRole.mentor || auth.role == UserRole.admin)
+        ? ClassroomRole.mentor
+        : ClassroomRole.student;
 
     _classroomService.onConnected = () {
       if (mounted) {
         setState(() {
-          _connectionState = classroomRole == ClassroomRole.mentor ? "Live: Waiting for students..." : "Connected: Waiting for mentor...";
+          _connectionState = classroomRole == ClassroomRole.mentor 
+            ? "Live: Waiting for students..." 
+            : "Connected: Waiting for host...";
         });
       }
     };
@@ -153,7 +130,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             ),
           ),
         );
-        // Only auto-leave for fatal server-side errors, NOT transport retries
         if (message.contains('multiple attempts')) {
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) Navigator.pop(context);
@@ -171,7 +147,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       role: classroomRole,
     );
 
-    // Add a notification for the live session
     if (mounted) {
       context.read<NotificationProvider>().addNotification({
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
@@ -304,14 +279,9 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             
             return Stack(
               children: [
-                // Video Grid
                 _buildVideoGrid(isSmallScreen),
-      
-                // Chat Overlay (Responsive)
                 if (_showChat) 
                   _buildResponsiveChat(constraints),
-      
-                // Meeting Controls
                 _buildControls(),
               ],
             );
@@ -357,6 +327,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       ),
     );
   }
+
   Widget _buildVideoGrid(bool isSmallScreen) {
     final auth = context.read<AuthProvider>();
     final isStudent = auth.role == UserRole.student;
@@ -367,14 +338,25 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         'renderer': _localRenderer, 
         'name': isStudent 
             ? 'You (Student)' 
-            : (auth.role == UserRole.admin ? 'You (Faculty Host)' : 'You (Mentor)'), 
-        'isMentor': !isStudent
+            : (auth.role == UserRole.admin ? 'You (Faculty Host)' : 'You (Alumni)'), 
+        'role': auth.role.name,
+        'isHost': !isStudent
       },
-      ..._remoteRenderers.entries.map((e) => {
-        'id': e.key, 
-        'renderer': e.value, 
-        'name': isStudent ? (widget.roomId.startsWith('FACULTY-') ? 'Faculty Host' : 'Mentor') : 'Student', 
-        'isMentor': isStudent // Inverted because it's the remote user
+      ..._remoteRenderers.entries.map((e) {
+        final meta = _classroomService.participants[e.key] ?? {};
+        final role = meta['role'] ?? 'student';
+        final name = meta['userName'] ?? 'Participant';
+        final isRemoteHost = (role == 'mentor' || role == 'admin');
+        
+        return {
+          'id': e.key, 
+          'renderer': e.value, 
+          'name': isRemoteHost 
+              ? (role == 'admin' ? 'Faculty: $name' : 'Alumni: $name')
+              : name, 
+          'role': role,
+          'isHost': isRemoteHost
+        };
       }),
     ];
 
@@ -389,8 +371,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       itemCount: allParticipants.length,
       itemBuilder: (context, index) {
         final p = allParticipants[index];
-        final isHost = p['isMentor'] == true;
-        final isLocal = p['id'] == 'local';
+        final isHost = p['isHost'] == true;
         
         return Container(
           decoration: BoxDecoration(
@@ -441,7 +422,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                       ),
                     ),
                   ),
-                // Gradient Overlay for better legibility
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -459,7 +439,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                     ),
                   ),
                 ),
-                // Name Tag with Role
                 Positioned(
                   bottom: 16,
                   left: 16,
@@ -495,7 +474,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                     ),
                   ),
                 ),
-                // Status Icons
                 Positioned(
                   top: 16,
                   right: 16,
@@ -505,16 +483,12 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: auth.role == UserRole.admin ? Colors.indigo : Colors.amber,
+                            color: p['role'] == 'admin' ? Colors.blueAccent : Colors.amber,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            auth.role == UserRole.admin ? "FACULTY HOST" : "MENTOR", 
-                            style: TextStyle(
-                              color: auth.role == UserRole.admin ? Colors.white : Colors.black, 
-                              fontSize: 9, 
-                              fontWeight: FontWeight.w900
-                            )
+                            p['role'] == 'admin' ? "FACULTY" : "ALUMNUS", 
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)
                           ),
                         ),
                       const SizedBox(width: 8),
@@ -788,7 +762,3 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     );
   }
 }
-
-
-
-
