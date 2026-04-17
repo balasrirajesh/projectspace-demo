@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io' as dart_io;
 import 'dart:convert';
 import 'dart:developer' as dev;
+import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
 
 /// Roles for the classroom:
 /// - Mentor (Alumni/Faculty): Can start sessions, send offers.

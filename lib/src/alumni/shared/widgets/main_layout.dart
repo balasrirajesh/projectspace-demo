@@ -7,6 +7,7 @@ import 'package:alumini_screen/src/alumni/shared/core/widgets/floating_navbar.da
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
 import 'package:alumini_screen/src/alumni/dashboard/dashboard_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
@@ -72,7 +73,7 @@ class _MainLayoutState extends State<MainLayout> {
                           ),
                            TextButton(
                             onPressed: () => auth.submitForVerification(), // Trigger mock verify
-                            child: const Text(
+                            child: Text(
                               kDebugMode ? "BYPASS / REFRESH" : "REFRESH", 
                               style: TextStyle(
                                 color: Colors.white, 

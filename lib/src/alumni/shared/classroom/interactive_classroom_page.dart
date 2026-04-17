@@ -1,5 +1,6 @@
 // webrtc multi-participant interactive video session with engagement tools
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/alumni/shared/services/classroom_service.dart';
@@ -285,6 +286,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isSmallScreen = constraints.maxWidth < 700;
+            final auth = context.read<AuthProvider>();
             
             return Stack(
               children: [
