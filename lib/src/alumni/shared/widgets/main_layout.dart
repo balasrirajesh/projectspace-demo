@@ -72,7 +72,10 @@ class _MainLayoutState extends State<MainLayout> {
                             ),
                           ),
                            TextButton(
-                            onPressed: () => auth.submitForVerification(), // Trigger mock verify
+                            onPressed: () {
+                              auth.syncStatusWithServer();
+                              auth.submitForVerification(); // Trigger mock verify for demo/debug
+                            },
                             child: Text(
                               kDebugMode ? "BYPASS / REFRESH" : "REFRESH", 
                               style: TextStyle(

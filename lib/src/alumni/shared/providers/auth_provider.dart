@@ -424,10 +424,32 @@ class AuthProvider with ChangeNotifier {
       dev.log('🧪 [AUTH] Debug/Demo mode detected. Auto-verifying in 5 seconds...');
       Future.delayed(const Duration(seconds: 5), () {
         _status = UserStatus.verified;
+        _isAdmin = (_role == UserRole.admin);
         notifyListeners();
         dev.log('✅ [AUTH] Account auto-verified for development');
       });
     }
+  }
+
+  Future<void> syncStatusWithServer() async {
+    if (_userId == null || _isDemoMode) return;
+
+    final url = getBaseUrl('auth/status/$_userId');
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final newStatus = _mapStatus(data['status']);
+        if (newStatus != _status) {
+          _status = newStatus;
+          notifyListeners();
+          dev.log('🔄 [AUTH] Status synchronized: $_status');
+        }
+      }
+    } catch (e) {
+      dev.log('⚠️ [AUTH] Status sync failed: $e');
+    }
+  }
   }
 
   bool get canAccessPremiumFeatures => _status == UserStatus.verified;

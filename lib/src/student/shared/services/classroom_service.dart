@@ -97,17 +97,19 @@ class ClassroomService {
         
         _socket?.io.timeout = 45000;
         _registerBasicEvents(serverUrl, userName); 
-        // Already connected, just join the room
-        _socket!.emit('join-room', {
-          'roomId': _roomId,
-          'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
-          'userName': userName,
-          'title': title ?? roomId,
-        });
-        
-        // Minor delay to allow room joining to register before calling onConnected
-        Future.delayed(const Duration(milliseconds: 100), () => onConnected?.call());
       }
+
+      // 3. Always signal JOIN for the current room
+      dev.log('📡 [RTC] Signaling join-room: $_roomId');
+      _socket!.emit('join-room', {
+        'roomId': _roomId,
+        'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
+        'userName': userName,
+        'title': title ?? roomId,
+      });
+      
+      // Minor delay to allow room joining to register before calling onConnected
+      Future.delayed(const Duration(milliseconds: 100), () => onConnected?.call());
     } catch (e) {
       onError?.call('Critical Handshake Error: $e');
     }
