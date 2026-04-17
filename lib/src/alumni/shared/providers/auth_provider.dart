@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -26,48 +27,96 @@ class AuthProvider with ChangeNotifier {
   static String get serverIp => _serverIp;
 
   static Future<void> resolveServerIp() async {
-    // If we have a production URL baked into .env (Jenkins build), skip local discovery.
-    // This prevents "Failed host lookup" logs when deployed to real devices.
+    // 1. Production override (e.g. Jenkins/OpenShift build ENV)
     if (_productionSignalingUrl.isNotEmpty) {
       dev.log('🌐 [AUTH] Production URL detected: $_productionSignalingUrl. Skipping local discovery.');
       return;
     }
 
-    // On web, we cannot easily scan local networks due to CORS. 
+    // 2. Web mode (Localhost is always the default for web dev)
     if (kIsWeb) {
-      print('🌐 [AUTH] Web mode: No production URL found, defaulting to localhost');
+      _serverIp = 'localhost';
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
+    
+    // 3. Fast Path: Try cached IP first
     final saved = prefs.getString('server_ip');
     if (saved != null && saved.isNotEmpty) {
-      try {
-        final result = await http
-            .get(Uri.parse('http://$saved:3000/'))
-            .timeout(const Duration(seconds: 1));
-        if (result.statusCode < 500) {
-          _serverIp = saved;
-          return;
-        }
-      } catch (_) {}
+      if (await _probeIp(saved, timeout: 800)) {
+        _serverIp = saved;
+        dev.log('⚡ [AUTH] Quick-connect to cached server: $_serverIp');
+        return;
+      }
     }
 
+    // 4. Slow Path: Dynamic Discovery
+    dev.log('🌐 [AUTH] Discovery: Starting local network scan...');
+    
+    // Static fallback candidates (Emulators, etc.)
+    final List<String> candidates = ['localhost', '127.0.0.1', '10.0.2.2'];
+    
     try {
-      final candidates = ['10.34.155.81', 'localhost', '127.0.0.1', '10.0.2.2'];
-      for (final ip in candidates) {
-        try {
-          final result = await http
-              .get(Uri.parse('http://$ip:3000/'))
-              .timeout(const Duration(seconds: 2));
-          if (result.statusCode < 500) {
-            _serverIp = ip;
-            return;
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false, 
+        type: InternetAddressType.IPv4
+      );
+
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          final parts = addr.address.split('.');
+          if (parts.length == 4) {
+            final String subnet = parts.sublist(0, 3).join('.');
+            final int deviceLastOctet = int.parse(parts[3]);
+
+            // Add common targets relative to current IP
+            candidates.add('$subnet.1');     // Gateway/Potential Dev PC
+            candidates.add('$subnet.100');   // Common lease start
+            
+            // Probe a small window around the device (covers most home/lab setups)
+            for (int i = -10; i <= 10; i++) {
+              int target = deviceLastOctet + i;
+              if (target > 0 && target < 255) candidates.add('$subnet.$target');
+            }
           }
-        } catch (_) {}
+        }
       }
+    } catch (e) {
+      dev.log('⚠️ [AUTH] Network scan failed: $e');
+    }
+
+    // Deduplicate and probe
+    final uniqueCandidates = candidates.toSet().toList();
+    
+    // Sort to prioritize previously used or common IPs
+    uniqueCandidates.sort((a, b) {
+       if (a == '10.0.2.2') return -1; // Prioritize Android emulator bridge
+       return 0;
+    });
+
+    for (final ip in uniqueCandidates) {
+      if (await _probeIp(ip, timeout: 600)) {
+        _serverIp = ip;
+        await saveServerIp(ip);
+        dev.log('✅ [AUTH] Discovery success: $ip');
+        return;
+      }
+    }
+
+    dev.log('❌ [AUTH] Discovery failed. Using localhost fallback.');
+    _serverIp = 'localhost';
+  }
+
+  /// Pings an IP to see if the signaling server is listening
+  static Future<bool> _probeIp(String ip, {int timeout = 1000}) async {
+    try {
+      final result = await http
+          .get(Uri.parse('http://$ip:3000/'))
+          .timeout(Duration(milliseconds: timeout));
+      return result.statusCode < 500;
     } catch (_) {
-      _serverIp = 'localhost';
+      return false;
     }
   }
 
