@@ -30,7 +30,9 @@ const io = require('socket.io')(http, {
   },
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ['polling', 'websocket']
+  transports: ['polling', 'websocket'],
+  maxHttpBufferSize: 1e8, // 100MB for image transfers
+  allowEIO3: true         // Backward compatibility
 });
 
 // Middleware
@@ -135,8 +137,8 @@ io.on('connection', (socket) => {
     socket.data.role = role;
 
     if (!rooms[roomId]) {
-      if (role !== 'mentor') {
-        console.log(`[ROOM] Denied: Student ${socket.id} attempted to join non-existent room ${roomId}`);
+      if (role !== 'mentor' && role !== 'admin') {
+        console.log(`[ROOM] Denied: ${role} ${socket.id} attempted to join non-existent room ${roomId}`);
         socket.emit('error', 'Class has not started yet. Please wait for the Alumni/Mentor to join.');
         return;
       }

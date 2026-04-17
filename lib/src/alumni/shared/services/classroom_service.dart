@@ -78,17 +78,22 @@ class ClassroomService {
 
       // 2. Setup or Reuse Socket.io
       if (_socket == null || !_socket!.connected) {
+        dev.log('🔌 [RTC] Initiating Handshake with server: $serverUrl');
+        
         _socket = io.io(serverUrl, io.OptionBuilder()
-            .setTransports(['polling', 'websocket']) 
+            .setTransports(['websocket', 'polling']) // Prioritize WebSocket for speed, fallback to polling
             .setPath('/api/socket')
             .setQuery({'userName': userName})
             .enableAutoConnect()
-            .setReconnectionAttempts(10)
-            .setReconnectionDelay(3000)
+            .setReconnectionAttempts(20)
+            .setReconnectionDelay(2000)
+            .setReconnectionDelayMax(5000)
+            .setRandomizationFactor(0.5)
             .build());
         
-        _socket?.io.timeout = 30000;
-        _registerBasicEvents(serverUrl, userName); // Pass userName for events
+        // Increase socket timeout to 45s for OpenShift cold-starts
+        _socket?.io.timeout = 45000;
+        _registerBasicEvents(serverUrl, userName); 
       } else {
         // Already connected, just join the new room
         _socket!.emit('join-room', {
@@ -133,12 +138,19 @@ class ClassroomService {
     });
 
     _socket!.onError((err) {
-      dev.log('❌ Socket Error: $err');
-      // Transport errors (404/websocket) are handled by auto-reconnect above.
-      // Only report non-transport socket errors to the user.
+      dev.log('❌ [RTC] Socket Error Details: $err');
+      
       final errStr = err.toString();
+      // Handle the dreaded timeout specifically
+      if (errStr.contains('timeout')) {
+        dev.log('⏳ [RTC] Connection Handshake timed out. Escalating to UI.');
+        onError?.call('Classroom connection timed out. Please verify your internet and try again.');
+        return;
+      }
+
+      // Ignore standard transport layer noise that auto-reconnect handles
       if (!errStr.contains('TransportError') && !errStr.contains('xhr poll error')) {
-        onError?.call('Socket Connection failed. Error: $errStr');
+        onError?.call('Handshake failed: $errStr');
       }
     });
 

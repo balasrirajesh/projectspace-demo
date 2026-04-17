@@ -18,12 +18,13 @@ exports.login = async (req, res) => {
             console.log(`[AUTH] Auto-registering new user: ${email}`);
             
             // AUTOMATED ROLE DETECTION
+            const lowEmail = email.toLowerCase();
             let role = 'student';
-            if (email.endsWith('@admin.com')) {
+            if (lowEmail.endsWith('@admin.com')) {
                 role = 'admin';
-            } else if (email.endsWith('@alumin.com')) {
+            } else if (lowEmail.endsWith('@alumin.com')) {
                 role = 'mentor';
-            } else if (email.endsWith('@stud.com')) {
+            } else if (lowEmail.endsWith('@stud.com')) {
                 role = 'student';
             }
 

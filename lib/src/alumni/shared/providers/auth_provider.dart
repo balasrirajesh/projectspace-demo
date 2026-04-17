@@ -240,9 +240,11 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     _isDemoMode = false;
-    _role = email.endsWith('@admin.com') 
+    
+    final lowEmail = email.toLowerCase();
+    _role = lowEmail.endsWith('@admin.com') 
         ? UserRole.admin 
-        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
+        : (lowEmail.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     notifyListeners();
 
     try {
@@ -306,9 +308,10 @@ class AuthProvider with ChangeNotifier {
 
   bool _fallbackToDemo(String email) {
     _isDemoMode = true;
-    _role = email.endsWith('@admin.com') 
+    final lowEmail = email.toLowerCase();
+    _role = lowEmail.endsWith('@admin.com') 
         ? UserRole.admin 
-        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
+        : (lowEmail.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     _userId = '${DateTime.now().millisecondsSinceEpoch}';
     _email = email;
     String rawName = email.contains('@') ? email.split('@')[0] : email;
@@ -436,9 +439,10 @@ class AuthProvider with ChangeNotifier {
     _status = UserStatus.incomplete;
     _email = email;
     _userId = "TEMP_${DateTime.now().millisecondsSinceEpoch}";
-    _role = email.endsWith('@admin.com') 
+    final lowEmail = email.toLowerCase();
+    _role = lowEmail.endsWith('@admin.com') 
         ? UserRole.admin 
-        : (email.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
+        : (lowEmail.endsWith('@alumin.com') ? UserRole.mentor : UserRole.student);
     notifyListeners();
   }
 }

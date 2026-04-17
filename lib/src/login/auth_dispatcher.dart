@@ -31,12 +31,9 @@ class AuthDispatcher extends StatelessWidget {
           return const AdminMainLayout();
         }
 
-        // 3. Check Profile Setup (ONLY if we are in signup/force mode)
-        if (auth.forceSetup && auth.status == UserStatus.incomplete) {
-          return auth.role == UserRole.student 
-              ? const student.ProfileSetupPage() 
-              : const alumni.ProfileSetupPage();
-        }
+        // 3. User Dashboard Dispatch
+        // We no longer force setup here to ensure a faster login-to-dashboard UX.
+        // The dashboard or profile pages can handle missing data gracefully.
 
         // 4. Fallback to Dashboard
         return auth.role == UserRole.student 

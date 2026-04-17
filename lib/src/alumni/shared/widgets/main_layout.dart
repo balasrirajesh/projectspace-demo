@@ -37,10 +37,7 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
-        // Step 2 Guard: If profile is incomplete, force setup
-        if (auth.status == UserStatus.incomplete) {
-          return const ProfileSetupPage();
-        }
+        // Setup guard removed to skip the page setup in logins as requested.
 
         return Scaffold(
           backgroundColor: AppColors.background,

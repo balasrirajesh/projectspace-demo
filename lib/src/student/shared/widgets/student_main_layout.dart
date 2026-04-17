@@ -85,10 +85,7 @@ class _StudentMainLayoutState extends State<StudentMainLayout> {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
-        // Guard: If profile is incomplete, force setup (matches mentor flow)
-        if (auth.status == UserStatus.incomplete) {
-          return const ProfileSetupPage();
-        }
+        // Guard removed: Skipping the page setup in logins per user requirement.
 
         return Scaffold(
           backgroundColor: AppColors.background,

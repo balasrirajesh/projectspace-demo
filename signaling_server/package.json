@@ -12,7 +12,13 @@
     "testTimeout": 10000,
     "reporters": [
       "default",
-      ["jest-junit", { "outputDirectory": "test-results", "outputName": "junit.xml" }]
+      [
+        "jest-junit",
+        {
+          "outputDirectory": "test-results",
+          "outputName": "junit.xml"
+        }
+      ]
     ],
     "collectCoverageFrom": [
       "**/*.js",
@@ -21,7 +27,10 @@
       "!**/coverage/**",
       "!**/lcov-report/**"
     ],
-    "coverageReporters": ["lcov", "text"],
+    "coverageReporters": [
+      "lcov",
+      "text"
+    ],
     "coverageDirectory": "coverage"
   },
   "keywords": [],
@@ -37,6 +46,7 @@
     "morgan": "^1.10.0",
     "node-media-server": "^4.2.4",
     "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

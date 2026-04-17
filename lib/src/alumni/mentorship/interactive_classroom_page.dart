@@ -101,10 +101,9 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    // Security check: only users with mentor role in AuthProvider can be mentors
-    final classroomRole = auth.role == UserRole.student
-        ? ClassroomRole.student
-        : ClassroomRole.mentor;
+    final classroomRole = (auth.role == UserRole.mentor || auth.role == UserRole.admin)
+        ? ClassroomRole.mentor
+        : ClassroomRole.student;
 
     _classroomService.onConnected = () {
       if (mounted) {
