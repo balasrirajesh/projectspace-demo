@@ -70,9 +70,17 @@ class _MainLayoutState extends State<MainLayout> {
                               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () => auth.submitForVerification(), // Mock retry/refresh
-                            child: const Text("REFRESH", style: TextStyle(color: Colors.white, fontSize: 12, decoration: TextDecoration.underline)),
+                           TextButton(
+                            onPressed: () => auth.submitForVerification(), // Trigger mock verify
+                            child: const Text(
+                              kDebugMode ? "BYPASS / REFRESH" : "REFRESH", 
+                              style: TextStyle(
+                                color: Colors.white, 
+                                fontSize: 12, 
+                                decoration: TextDecoration.underline,
+                                fontWeight: FontWeight.bold
+                              )
+                            ),
                           ),
                         ],
                       ),

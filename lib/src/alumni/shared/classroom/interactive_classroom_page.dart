@@ -33,6 +33,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   bool _isCameraOff = false;
   bool _showChat = false;
   bool _isInitialized = false;
+  bool _hasHost = false; 
   String _connectionState = "Connecting to classroom handshake...";
 
   @override
@@ -89,6 +90,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       if (mounted) {
         final hostLabel = (role == 'admin') ? 'Faculty' : 'Alumnus';
         setState(() {
+          _hasHost = true;
           _connectionState = "$hostLabel ($userName) Joined! Connecting...";
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,7 +141,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    dev.log('🚪 [CLASS] Joining room ${widget.roomId} as ${classroomRole.name}');
+    // --- Connection Watchdog ---
+    final connectionWatchdog = Future.delayed(const Duration(seconds: 15), () {
+      if (mounted && _connectionState == "Connecting to classroom handshake...") {
+        dev.log('⚠️ [CLASS] Handshake timed out after 15s');
+        _classroomService.onError?.call('Connection timeout. Please check your network or server status.');
+      }
+    });
 
     await _classroomService.joinRoom(
       serverUrl: AuthProvider.getSignalingUrl(),
@@ -281,12 +289,49 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             return Stack(
               children: [
                 _buildVideoGrid(isSmallScreen),
+                if (auth.role == UserRole.student && !_hasHost)
+                  _buildWaitingRoomOverlay(),
                 if (_showChat) 
                   _buildResponsiveChat(constraints),
                 _buildControls(),
               ],
             );
           }
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaitingRoomOverlay() {
+    return Positioned.fill(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: Colors.black.withOpacity(0.8),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_clock_rounded, color: Colors.amber, size: 80).animate().shake(delay: 500.ms),
+                const SizedBox(height: 24),
+                const Text(
+                  "Waiting for Faculty",
+                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    "This educational session will begin as soon as a mentor or administrator arrives. Please stay on this screen.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const CircularProgressIndicator(color: Colors.amber),
+              ],
+            ),
+          ),
         ),
       ),
     );

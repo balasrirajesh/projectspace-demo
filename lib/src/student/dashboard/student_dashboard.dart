@@ -346,16 +346,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
     final title = room['title'] ?? 'Untitled Class';
     final attendees = room['attendees'] ?? 0;
     
+    final isLive = room['isLive'] ?? false;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 1.5),
+        border: Border.all(
+          color: isLive ? Colors.redAccent.withOpacity(0.3) : Colors.grey.withOpacity(0.2), 
+          width: 1.5
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.redAccent.withOpacity(0.05),
+            color: isLive ? Colors.redAccent.withOpacity(0.05) : Colors.black.withOpacity(0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -366,23 +371,34 @@ class _StudentDashboardState extends State<StudentDashboard> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.redAccent.withOpacity(0.1),
+              color: isLive ? Colors.redAccent.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.sensors, color: Colors.redAccent, size: 20),
+            child: Icon(
+              isLive ? Icons.sensors : Icons.sensors_off, 
+              color: isLive ? Colors.redAccent : Colors.grey, 
+              size: 20
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text("$attendees students attending", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(title, style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 15,
+                  color: isLive ? Colors.black : Colors.grey
+                )),
+                Text(
+                  isLive ? "$attendees attending" : "Wait for host to start", 
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12)
+                ),
               ],
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: isLive ? () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -391,13 +407,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   ),
                 ),
               );
-            },
+            } : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
+              backgroundColor: isLive ? Colors.redAccent : Colors.grey[300],
+              foregroundColor: isLive ? Colors.white : Colors.grey[600],
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: isLive ? 2 : 0,
             ),
-            child: const Text("JOIN LIVE"),
+            child: Text(isLive ? "JOIN LIVE" : "LOBBYING"),
           ),
         ],
       ),

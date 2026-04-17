@@ -415,10 +415,13 @@ class AuthProvider with ChangeNotifier {
       }
     }
 
-    if (_isDemoMode) {
-      Future.delayed(const Duration(seconds: 15), () {
+    // Development / Demo Auto-Verification Bypass
+    if (_isDemoMode || kDebugMode) {
+      dev.log('🧪 [AUTH] Debug/Demo mode detected. Auto-verifying in 5 seconds...');
+      Future.delayed(const Duration(seconds: 5), () {
         _status = UserStatus.verified;
         notifyListeners();
+        dev.log('✅ [AUTH] Account auto-verified for development');
       });
     }
   }

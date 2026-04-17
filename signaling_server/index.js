@@ -141,14 +141,20 @@ io.on('connection', (socket) => {
     socket.data.roomId = roomId;
     socket.data.role = role;
 
-    // Ensure room exists (Lazy initialization)
+    // Ensure room exists (Only Mentor/Admin can initialize)
     if (!rooms[roomId]) {
-      console.log(`[ROOM] Initializing room: ${roomId}`);
-      rooms[roomId] = {
-        participants: {}, // socketId -> { role, userName }
-        title: title || (roomId === 'global-lobby' ? 'Global Lobby' : roomId),
-        startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
+      if (role === 'mentor' || role === 'admin') {
+        console.log(`[ROOM] Initializing room: ${roomId} by ${role}`);
+        rooms[roomId] = {
+          participants: {}, // socketId -> { role, userName }
+          title: title || (roomId === 'global-lobby' ? 'Global Lobby' : roomId),
+          startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+      } else {
+        console.log(`[JOIN REJECTED] Student ${socket.id} tried to join non-existent room: ${roomId}`);
+        socket.emit('error', 'This classroom has not been started by the faculty yet.');
+        return;
+      }
     }
 
     // HANDSHAKE: Send historical messages to the joining user

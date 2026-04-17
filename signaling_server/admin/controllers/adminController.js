@@ -98,21 +98,23 @@ exports.terminateSession = async (req, res) => {
             console.log(`[ADMIN SUPERIOR] Terminating room: ${roomId}`);
             
             // Notify all participants in the room
-            io.to(roomId).emit('session-terminated', { 
-                message: 'This session has been terminated by a College Administrator.' 
-            });
-
+            io.to(roomId).emit('mentor-left');
+            
             // Delete the room
             delete rooms[roomId];
             
             // Broadcast updated room list
-            const roomList = Object.keys(rooms).map(id => ({
-                id,
-                title: rooms[id].title || id,
-                isLive: true,
-                attendees: rooms[id].students.length,
-                startTime: rooms[id].startTime
-            }));
+            const roomList = Object.keys(rooms).map(id => {
+                const pMap = rooms[id].participants || {};
+                const hosts = Object.values(pMap).filter(p => p.role === 'mentor' || p.role === 'admin');
+                return {
+                    id,
+                    title: rooms[id].title || id,
+                    isLive: hosts.length > 0,
+                    attendees: Object.keys(pMap).length,
+                    startTime: rooms[id].startTime
+                };
+            });
             io.emit('room-list', roomList);
 
             res.json({ message: `Session ${roomId} terminated successfully` });

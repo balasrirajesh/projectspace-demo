@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/admin/shared/providers/admin_provider.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
-import 'package:alumini_screen/src/student/mentorship/interactive_classroom_page.dart';
+import 'package:alumini_screen/src/alumni/shared/classroom/interactive_classroom_page.dart';
 import 'dart:math' as math;
 import 'package:flutter_animate/flutter_animate.dart';
 
