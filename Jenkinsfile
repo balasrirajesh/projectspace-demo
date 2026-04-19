@@ -85,16 +85,15 @@ pipeline {
                 echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
                 script {
                     def ocCmd = env.OC_PATH ?: 'oc'
-                    withCredentials([string(credentialsId: 'oc-token', variable: 'TOKEN')]) {
-                        bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
-                        bat "${ocCmd} project ${env.OC_PROJECT}"
-                        bat "${ocCmd} apply -f openshift/mongodb.yaml"
-                        bat "${ocCmd} apply -f openshift/deployment.yaml"
-                        bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
-                        bat "${ocCmd} apply -f openshift/service.yaml"
-                        bat "${ocCmd} rollout restart deployment/signaling-server"
-                        bat "${ocCmd} rollout status deployment/signaling-server"
-                    }
+                    def TOKEN = "sha256~ymXregw9RlgCbltAVBmtyxxSLSvcCKebN--Kg39FdE4"
+                    bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
+                    bat "${ocCmd} project ${env.OC_PROJECT}"
+                    bat "${ocCmd} apply -f openshift/mongodb.yaml"
+                    bat "${ocCmd} apply -f openshift/deployment.yaml"
+                    bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
+                    bat "${ocCmd} apply -f openshift/service.yaml"
+                    bat "${ocCmd} rollout restart deployment/signaling-server"
+                    bat "${ocCmd} rollout status deployment/signaling-server"
                 }
             }
         }
