@@ -1,0 +1,13 @@
+name: Production Keep Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Runs every 10 minutes
+  workflow_dispatch:      # Allows manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Signaling Server
+        run: curl -I https://signaling-server-23mh1a05n6-dev.apps.rm2.thpm.p1.openshiftapps.com/api/health
