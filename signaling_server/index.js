@@ -327,8 +327,11 @@ app.use((err, req, res, next) => {
 
 if (process.env.NODE_ENV !== 'test') {
   http.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Signaling Server ready on port ${PORT}`);
-    console.log(`📡 Socket.IO Path: /api/socket`);
+    console.log(`🚀 SIGNALING SERVER STARTUP SUCCESS`);
+    console.log(`📡 Listening on port: ${PORT}`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Socket.IO Path: /api/socket`);
+    console.log(`🍃 Initializing MongoDB connection to: ${MONGODB_URI.split('@').pop()}`); // Log host only for security
   });
 }
 

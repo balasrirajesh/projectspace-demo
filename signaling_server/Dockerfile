@@ -12,8 +12,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 
-# Copy application source
+# Copy application source with explicit permissions
 COPY --chown=node:node . .
+RUN chown -R node:node /app
 
 # Update ffmpeg path for Linux
 ENV FFMPEG_PATH=/usr/bin/ffmpeg

@@ -133,6 +133,13 @@ class ClassroomService {
     _socket!.onError((err) {
       dev.log('❌ Handshake Error: $err');
       final errStr = err.toString();
+      
+      // Handle Production Infrastructure Failures (503)
+      if (errStr.contains('503')) {
+        onError?.call('Production Server is currently unavailable (503). It might be scaling up or undergoing maintenance.');
+        return;
+      }
+
       if (!errStr.contains('TransportError') && !errStr.contains('xhr poll error')) {
         onError?.call('Signal failure: $errStr');
       }
