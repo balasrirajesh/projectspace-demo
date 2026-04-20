@@ -12,7 +12,7 @@ pipeline {
         // STATIC ENVIRONMENT (Hardcoded to match user system)
         FLUTTER_HOME = "C:\\dev\\flutter"
         ANDROID_HOME = "C:\\Users\\naren\\AppData\\Local\\Android\\Sdk"
-        OC_PATH = "C:\\Users\\naren\\oc.exe"
+        OC_PATH = "C:\\Users\\naren\\Downloads\\oc\\oc.exe"
         DOCKER_IMAGE = "rajesh200402/signaling-server:latest"
         
         // CONFIG
@@ -85,7 +85,7 @@ pipeline {
                 echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
                 script {
                     def ocCmd = env.OC_PATH ?: 'oc'
-                    def TOKEN = "sha256~ymXregw9RlgCbltAVBmtyxxSLSvcCKebN--Kg39FdE4"
+                    def TOKEN = "sha256~hc5TDnybFoHSIpqS5Cv9M5UgdsYvAkI0JF6W_s5XUkA"
                     bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
                     bat "${ocCmd} project ${env.OC_PROJECT}"
                     bat "${ocCmd} apply -f openshift/mongodb.yaml"
