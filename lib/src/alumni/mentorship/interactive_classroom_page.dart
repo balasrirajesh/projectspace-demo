@@ -39,6 +39,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   final Set<String> _raisedHands = {};
   String _connectionState = "Connecting to classroom handshake...";
 
+  final ScrollController _scrollController = ScrollController();
+  
   @override
   void initState() {
     super.initState();
@@ -71,9 +73,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     _classroomService.onChatMessage = (from, message) {
       if (mounted) {
+        final myName = context.read<AuthProvider>().userName;
+        if (from == myName) return; // Avoid duplicate from echo
+        
         setState(() {
           _messages.add({'from': from, 'text': message});
         });
+        _scrollToBottom();
 
         // Universal notification for everyone
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -224,6 +230,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   void dispose() {
     _cleanup();
     _chatController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -236,11 +243,30 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   void _sendMessage() {
-    if (_chatController.text.isNotEmpty) {
+    if (_chatController.text.trim().isNotEmpty) {
       final auth = context.read<AuthProvider>();
-      _classroomService.sendMessage(_chatController.text, auth.userName);
+      final text = _chatController.text.trim();
+      
+      setState(() {
+        _messages.add({'from': auth.userName, 'text': text});
+      });
+      
+      _classroomService.sendMessage(text, auth.userName);
       _chatController.clear();
+      _scrollToBottom();
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -265,40 +291,43 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
               child: const Icon(Icons.sensors, color: Colors.redAccent, size: 16),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Room: ${widget.roomId}", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green : Colors.orange,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          )
-                        ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Room: ${widget.roomId}", 
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: (_connectionState.contains("Live") || _connectionState.contains("Session") || _connectionState.contains("Connected")) ? Colors.green : Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _connectionState.toUpperCase(), 
-                      style: const TextStyle(
-                        color: Colors.white70, 
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      )
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _connectionState.toUpperCase(), 
+                          style: const TextStyle(
+                            color: Colors.white70, 
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -332,10 +361,19 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             
             return Stack(
               children: [
-                _buildVideoGrid(isSmallScreen),
+                // 1. MAIN PRODUCTIVE AREA (Responsive Column)
+                Column(
+                  children: [
+                    Expanded(
+                      child: _buildVideoGrid(isSmallScreen),
+                    ),
+                    if (!_showChat) _buildControls(),
+                  ],
+                ),
+                
+                // 2. CHAT OVERLAY (Takes precedence when open)
                 if (_showChat) 
-                  _buildResponsiveChat(constraints),
-                _buildControls(),
+                   _buildResponsiveChat(constraints),
               ],
             );
           }
@@ -346,20 +384,107 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   Widget _buildParticipantCount() {
     final count = 1 + _remoteRenderers.length;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+    return InkWell(
+      onTap: _showAttendeesList,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.people_outline, color: Colors.white70, size: 14),
+            const SizedBox(width: 4),
+            Text("$count", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.people_outline, color: Colors.white70, size: 14),
-          const SizedBox(width: 4),
-          Text("$count", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-        ],
+    );
+  }
+
+  void _showAttendeesList() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        final auth = context.read<AuthProvider>();
+        final attendees = [
+          {
+            'name': auth.userName,
+            'role': auth.role == UserRole.student ? 'Student' : (auth.role == UserRole.admin ? 'Faculty' : 'Alumnus'),
+            'isMe': true
+          },
+          ..._remoteRenderers.entries.map((e) {
+            final name = _classroomService.participants[e.key] ?? 'Participant';
+            return {
+              'name': name,
+              'role': 'Member',
+              'isMe': false
+            };
+          })
+        ];
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "In the Classroom (${attendees.length})",
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: attendees.length,
+                  itemBuilder: (context, index) {
+                    final p = attendees[index];
+                    final isMe = p['isMe'] as bool;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isMe ? Colors.blueAccent : Colors.white10,
+                        child: Text(
+                          p['name'].toString().substring(0, 1).toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      title: Text(
+                        isMe ? "${p['name']} (You)" : p['name'].toString(),
+                        style: TextStyle(
+                          color: Colors.white, 
+                          fontWeight: isMe ? FontWeight.bold : FontWeight.normal
+                        ),
+                      ),
+                      subtitle: Text(
+                        p['role'].toString(),
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.circle, color: Colors.green, size: 8),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -610,6 +735,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
           const Divider(color: Colors.white10, height: 1),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
@@ -650,7 +776,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isMe ? Colors.blueAccent : Colors.white.withOpacity(0.1),
+                            color: isMe ? Colors.blueAccent : Colors.white.withOpacity(0.15),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(16),
                               topRight: const Radius.circular(16),
@@ -677,41 +803,59 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   Widget _buildChatInput() {
     return Container(
-      padding: const EdgeInsets.all(8),
-      color: Colors.grey[900],
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 22),
-            onPressed: _pickImage,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _chatController,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: "Type a message...",
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                border: InputBorder.none,
-              ),
-              onSubmitted: (_) => _sendMessage(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white54, size: 22),
+              onPressed: _pickImage,
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send, color: Colors.blueAccent, size: 20),
-            onPressed: _sendMessage,
-          ),
-        ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextField(
+                  controller: _chatController,
+                  style: const TextStyle(color: Colors.black87, fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText: "Type a message...",
+                    hintStyle: TextStyle(color: Colors.black45, fontSize: 14),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: const BoxDecoration(
+                color: Colors.blueAccent,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 18),
+                onPressed: _sendMessage,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildControls() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
+    return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: ClipRRect(
@@ -877,7 +1021,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             ),
           ),
         ),
-      ),
     );
   }
 
