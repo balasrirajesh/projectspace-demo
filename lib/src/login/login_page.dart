@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:alumini_screen/src/alumni/core/theme/app_theme.dart';
 import 'package:alumini_screen/src/signup/signup_page.dart';
 import 'package:alumini_screen/src/alumni/shared/widgets/main_layout.dart';
-import 'package:alumini_screen/src/student/shared/widgets/student_main_layout.dart';
+// import 'package:alumini_screen/src/student/shared/widgets/student_main_layout.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
 import 'package:alumini_screen/src/alumni/core/widgets/server_ip_dialog.dart';

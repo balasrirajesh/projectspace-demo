@@ -31,7 +31,7 @@ class ClassroomService {
   Function(String participantId, MediaStream stream)? onRemoteStreamAdded;
   Function(String participantId)? onRemoteStreamRemoved;
   Function(String from, String text)? onChatMessage;
-  Function(String from)? onHandRaised;
+  Function(String from, bool isRaised)? onHandRaised;
   Function(String mentorId, String userName, {String? role})? onMentorJoined;
   Function(String message)? onError;
   Function()? onConnected;
@@ -194,7 +194,7 @@ class ClassroomService {
     // Global Events
     _socket!.on('mentor-left', (_) => onError?.call('The educational session has ended.'));
     _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
-    _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
+    _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone', data['isRaised'] ?? true));
     _socket!.on('room-list', (data) => onRoomListUpdate?.call(data as List<dynamic>));
     _socket!.on('new-announcement', (data) => onAnnouncementReceived?.call(Map<String, dynamic>.from(data as Map)));
 
@@ -308,8 +308,8 @@ class ClassroomService {
     });
   }
     
-  void raiseHand(String userName) => 
-    _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName});
+  void raiseHand(String userName, bool isRaised) => 
+    _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName, 'isRaised': isRaised});
 
   void toggleAudio(bool enabled) => localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
   void toggleVideo(bool enabled) => localStream?.getVideoTracks().forEach((t) => t.enabled = enabled);

@@ -1,63 +1,30 @@
+import 'dart:async';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
-import 'dart:io' as dart_io;
 import 'dart:convert';
 import 'dart:developer' as dev;
-import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
 
-/// Roles for the classroom:
-/// - Mentor (Alumni/Faculty): Can start sessions, send offers.
-/// - Student: Joins sessions, sends answers.
 enum ClassroomRole { mentor, student }
 
 class ClassroomService {
-  // Singleton pattern for unified signaling
-  static final ClassroomService _instance = ClassroomService._internal();
-  factory ClassroomService() => _instance;
-  ClassroomService._internal();
-
   io.Socket? _socket;
-  String _roomId = '';
-  ClassroomRole _role = ClassroomRole.student;
-
-  // WebRTC core objects
+  RTCPeerConnection? _peerConnection;
   MediaStream? localStream;
-  final Map<String, RTCPeerConnection> peerConnections = {};
-  final Map<String, MediaStream> remoteStreams = {};
-  final Map<String, Map<String, String>> participants = {}; // socketId -> { role, userName }
+  String? _roomId;
+  final Map<String, dynamic> participants = {};
 
-  // Handlers for the UI
+  // Callbacks
   Function(String participantId, MediaStream stream)? onRemoteStreamAdded;
   Function(String participantId)? onRemoteStreamRemoved;
   Function(String from, String text)? onChatMessage;
-  Function(String from)? onHandRaised;
+  Function(String from, bool isRaised)? onHandRaised;
   Function(String mentorId, String userName, {String? role})? onMentorJoined;
   Function(String message)? onError;
   Function()? onConnected;
   Function(List<dynamic> rooms)? onRoomListUpdate;
   Function(Map<String, dynamic> data)? onAnnouncementReceived;
 
-  // Robust WebRTC Configuration using STUN & Free TURN for NAT Traversal
-  final Map<String, dynamic> _rtcConfig = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-      {
-        'urls': [
-          'stun:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443?transport=tcp',
-        ],
-        'username': 'openrelayproject',
-        'credential': 'openrelayproject',
-      },
-    ],
-    'iceTransportPolicy': 'all',
-    'sdpSemantics': 'unified-plan',
-  };
-
-  /// Main entry point to join a live class
   Future<void> joinRoom({
     required String serverUrl,
     required String roomId,
@@ -67,126 +34,52 @@ class ClassroomService {
     bool useMedia = true,
   }) async {
     _roomId = roomId;
-    _role = role;
+    
+    // 1. Setup Socket
+    _socket = io.io(serverUrl, {
+      'transports': ['websocket', 'polling'],
+      'autoConnect': true,
+      'path': '/api/socket',
+      'extraHeaders': {'userName': userName},
+      'reconnection': true,
+      'reconnectionAttempts': 5,
+      'reconnectionDelay': 2000,
+    });
 
-    try {
-      // 1. Get Camera/Mic access with failsafe try-catch
-      if (useMedia) {
-        try {
-          localStream = await navigator.mediaDevices.getUserMedia({
-            'audio': true,
-            'video': {'facingMode': 'user', 'width': 640, 'height': 480},
-          });
-        } catch (mediaErr) {
-          dev.log('⚠️ [RTC] Media Denied: $mediaErr. Continuing with signaling only.');
-        }
-      }
-
-      // 2. Setup or Reuse Socket.io
-      if (_socket == null || !_socket!.connected) {
-        dev.log('🔌 [RTC] Handshaking with server: $serverUrl');
-        
-        _socket = io.io(serverUrl, io.OptionBuilder()
-            .setTransports(['websocket', 'polling']) 
-            .setPath('/api/socket')
-            .setQuery({'userName': userName})
-            .enableAutoConnect()
-            .setReconnectionAttempts(15)
-            .setReconnectionDelay(2000)
-            .build());
-        
-        _socket?.io.timeout = 45000;
-        _registerBasicEvents(serverUrl, userName); 
-      }
-
-      // 3. Always signal JOIN for the current room
-      dev.log('📡 [RTC] Signaling join-room: $_roomId');
+    _socket!.onConnect((_) {
+      dev.log('✅ [RTC] Connected to signaling server');
       _socket!.emit('join-room', {
-        'roomId': _roomId,
-        'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
+        'roomId': roomId,
         'userName': userName,
-        'title': title ?? roomId,
-      });
-      
-      // Minor delay to allow room joining to register before calling onConnected
-      Future.delayed(const Duration(milliseconds: 100), () => onConnected?.call());
-    } catch (e) {
-      onError?.call('Critical Handshake Error: $e');
-    }
-  }
-
-  void _registerBasicEvents(String serverUrl, String userName) {
-    _socket!.onConnect((_) async {
-      dev.log('✅ Connected to Signaling Server');
-      await Future.delayed(const Duration(milliseconds: 300));
-      
-      _socket!.emit('join-room', {
-        'roomId': _roomId,
-        'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
-        'userName': userName,
+        'role': role == ClassroomRole.mentor ? 'mentor' : 'student'
       });
       onConnected?.call();
     });
 
-    _socket!.onConnectError((err) => dev.log('❌ Connection Error: $err'));
-    
-    _socket!.onError((err) {
-      dev.log('❌ Handshake Error: $err');
-      final errStr = err.toString();
-      
-      // Handle Production Infrastructure Failures (503)
-      if (errStr.contains('503')) {
-        onError?.call('Production Server is currently unavailable (503). It might be scaling up or undergoing maintenance.');
-        return;
-      }
-
-      if (!errStr.contains('TransportError') && !errStr.contains('xhr poll error')) {
-        onError?.call('Signal failure: $errStr');
-      }
+    _socket!.onConnectError((data) {
+      dev.log('❌ [RTC] Connection Error: $data');
+      onError?.call('Could not connect to the classroom server.');
     });
 
-    // --- Signaling Handshake (MESH Logic) ---
-
-    _socket!.on('participant-list', (data) async {
-      dev.log('👥 [RTC] Discovering participants: $data');
-      final participantMap = Map<String, dynamic>.from(data as Map);
-      
-      participantMap.forEach((id, metadata) {
-        if (id != _socket!.id) {
-          participants[id] = Map<String, String>.from(metadata);
-          
-          // Initial Host Discovery: Notify UI so it stops "Waiting"
-          final role = metadata['role'];
-          if (role == 'mentor' || role == 'admin') {
-            onMentorJoined?.call(id, metadata['userName'] ?? 'Host', role: role);
-          }
-
-          // MESH RULE: Joiner initiates to established members
-          _createOffer(id, userName);
-        }
-      });
+    // 2. Setup Listeners
+    _socket!.on('participant-list', (data) {
+      participants.clear();
+      participants.addAll(Map<String, dynamic>.from(data));
     });
 
     _socket!.on('participant-joined', (data) {
-      final id = data['socketId'];
-      dev.log('👋 [RTC] Participant entered: ${data['userName']} ($id)');
-      participants[id] = {
-        'role': data['role'],
-        'userName': data['userName']
-      };
-      
+      participants[data['socketId']] = data;
       if (data['role'] == 'mentor' || data['role'] == 'admin') {
-        onMentorJoined?.call(id, data['userName'], role: data['role']);
+        onMentorJoined?.call(data['socketId'], data['userName'], role: data['role']);
       }
+      _startPeerConnection(data['socketId'], userName, isOffer: role == ClassroomRole.mentor);
     });
 
     _socket!.on('participant-left', (id) {
-      dev.log('🚪 [RTC] Participant left: $id');
       participants.remove(id);
-      _removePeer(id);
+      onRemoteStreamRemoved?.call(id);
     });
 
-    // Relay Listeners
     _socket!.on('offer', (data) async => await _handleOffer(data, userName));
     _socket!.on('answer', (data) async => await _handleAnswer(data));
     _socket!.on('ice-candidate', (data) async => await _handleIceCandidate(data));
@@ -194,155 +87,148 @@ class ClassroomService {
     // Global Events
     _socket!.on('mentor-left', (_) => onError?.call('The educational session has ended.'));
     _socket!.on('new-message', (data) => onChatMessage?.call(data['userName'] ?? 'Unknown', data['text']));
-    _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone'));
+    _socket!.on('user-raised-hand', (data) => onHandRaised?.call(data['userName'] ?? 'Someone', data['isRaised'] ?? true));
     _socket!.on('room-list', (data) => onRoomListUpdate?.call(data as List<dynamic>));
     _socket!.on('new-announcement', (data) => onAnnouncementReceived?.call(Map<String, dynamic>.from(data as Map)));
 
-    if (!_socket!.connected) _socket!.connect();
+    // 3. Get Local Media
+    if (useMedia) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': {
+            'facingMode': 'user',
+            'width': 640,
+            'height': 480,
+            'frameRate': 15,
+          }
+        });
+      } catch (e) {
+        dev.log('❌ [RTC] Media Error: $e');
+        // Continue without local stream (view only mode)
+      }
+    }
   }
 
-  // --- WebRTC Core ---
+  Future<void> _startPeerConnection(String targetId, String localName, {required bool isOffer}) async {
+    _peerConnection = await createPeerConnection({
+      'iceServers': [
+        {'urls': 'stun:stun.l.google.com:19302'},
+        {'urls': 'stun:stun1.l.google.com:19302'},
+      ]
+    });
 
-  Future<RTCPeerConnection> _createPeerConnection(String remoteId, String localName) async {
-    RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
-    peerConnections[remoteId] = pc;
-
-    localStream?.getTracks().forEach((track) => pc.addTrack(track, localStream!));
-
-    pc.onIceCandidate = (candidate) {
+    _peerConnection!.onIceCandidate = (candidate) {
       _socket!.emit('ice-candidate', {
-        'target': remoteId,
+        'target': targetId,
         'candidate': candidate.toMap(),
-        'fromName': localName,
+        'fromName': localName
       });
     };
 
-    pc.onTrack = (event) {
+    _peerConnection!.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        remoteStreams[remoteId] = event.streams[0];
-        onRemoteStreamAdded?.call(remoteId, event.streams[0]);
-      } else {
-        _createFallbackStream(remoteId, event.track);
+        onRemoteStreamAdded?.call(targetId, event.streams[0]);
       }
     };
 
-    return pc;
-  }
+    localStream?.getAudioTracks().forEach((track) {
+      _peerConnection!.addTrack(track, localStream!);
+    });
+    localStream?.getVideoTracks().forEach((track) {
+      _peerConnection!.addTrack(track, localStream!);
+    });
 
-  Future<void> _createFallbackStream(String remoteId, MediaStreamTrack track) async {
-    if (remoteStreams.containsKey(remoteId)) {
-      remoteStreams[remoteId]!.addTrack(track);
-    } else {
-      final stream = await createLocalMediaStream('remote_$remoteId');
-      await stream.addTrack(track);
-      remoteStreams[remoteId] = stream;
-      onRemoteStreamAdded?.call(remoteId, stream);
+    if (isOffer) {
+      RTCSessionDescription offer = await _peerConnection!.createOffer();
+      await _peerConnection!.setLocalDescription(offer);
+      _socket!.emit('offer', {
+        'target': targetId,
+        'offer': offer.toMap(),
+        'fromName': localName
+      });
     }
   }
 
-  Future<void> _createOffer(String targetId, String localName) async {
-    final pc = await _createPeerConnection(targetId, localName);
-    RTCSessionDescription offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    _socket!.emit('offer', {
-      'target': targetId,
-      'offer': offer.toMap(),
-      'fromName': localName,
-    });
-  }
-
-  Future<void> _handleOffer(dynamic data, String localName) async {
-    final String from = data['from'].toString();
-    final pc = await _createPeerConnection(from, localName);
+  Future<void> _handleOffer(Map<String, dynamic> data, String localName) async {
+    if (_peerConnection == null) await _startPeerConnection(data['from'], localName, isOffer: false);
     
-    await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+    await _peerConnection!.setRemoteDescription(
+      RTCSessionDescription(data['offer']['sdp'], data['offer']['type'])
+    );
     
-    RTCSessionDescription answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
+    RTCSessionDescription answer = await _peerConnection!.createAnswer();
+    await _peerConnection!.setLocalDescription(answer);
+    
     _socket!.emit('answer', {
-      'target': from,
+      'target': data['from'],
       'answer': answer.toMap(),
-      'fromName': localName,
+      'fromName': localName
     });
   }
 
-  Future<void> _handleAnswer(dynamic data) async {
-    final pc = peerConnections[data['from']];
-    if (pc != null) {
-      await pc.setRemoteDescription(RTCSessionDescription(data['answer']['sdp'], data['answer']['type']));
+  Future<void> _handleAnswer(Map<String, dynamic> data) async {
+    await _peerConnection!.setRemoteDescription(
+      RTCSessionDescription(data['answer']['sdp'], data['answer']['type'])
+    );
+  }
+
+  Future<void> _handleIceCandidate(Map<String, dynamic> data) async {
+    if (data['candidate'] != null) {
+      await _peerConnection!.addCandidate(
+        RTCIceCandidate(
+          data['candidate']['candidate'],
+          data['candidate']['sdpMid'],
+          data['candidate']['sdpMLineIndex'],
+        )
+      );
     }
   }
 
-  Future<void> _handleIceCandidate(dynamic data) async {
-    final pc = peerConnections[data['from']];
-    if (pc != null) {
-      await pc.addCandidate(RTCIceCandidate(
-        data['candidate']['candidate'],
-        data['candidate']['sdpMid'],
-        data['candidate']['sdpMLineIndex'],
-      ));
-    }
+  Future<void> leaveRoom() async {
+    _socket?.emit('leave-room', {'roomId': _roomId});
+    localStream?.getAudioTracks().forEach((t) => t.stop());
+    localStream?.getVideoTracks().forEach((t) => t.stop());
+    await _peerConnection?.dispose();
+    _socket?.disconnect();
+    _socket?.dispose();
   }
 
-  void _removePeer(String id) {
-    peerConnections[id]?.dispose();
-    peerConnections.remove(id);
-    remoteStreams.remove(id);
-    onRemoteStreamRemoved?.call(id);
-  }
-
-  // Messaging Helpers
   void sendMessage(String text, String userName) => 
     _socket?.emit('send-message', {'text': text, 'roomId': _roomId, 'userName': userName});
-    
+
   Future<void> sendImage(XFile image, String userName) async {
-    final bytes = await dart_io.File(image.path).readAsBytes();
-    final base64Image = base64Encode(bytes);
+    final bytes = await image.readAsBytes();
+    final base64 = base64Encode(bytes);
     _socket?.emit('send-image', {
-      'image': base64Image,
+      'image': base64,
       'roomId': _roomId,
       'userName': userName,
       'type': 'image'
     });
   }
-    
-  void raiseHand(String userName) => 
-    _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName});
+
+  void raiseHand(String userName, bool isRaised) => 
+    _socket?.emit('raise-hand', {'roomId': _roomId, 'userName': userName, 'isRaised': isRaised});
 
   void toggleAudio(bool enabled) => localStream?.getAudioTracks().forEach((t) => t.enabled = enabled);
   void toggleVideo(bool enabled) => localStream?.getVideoTracks().forEach((t) => t.enabled = enabled);
 
   Future<void> switchCamera() async {
-    if (localStream != null) {
-      final videoTrack = localStream!.getVideoTracks().first;
-      await Helper.switchCamera(videoTrack);
+    if (localStream != null && localStream!.getVideoTracks().isNotEmpty) {
+      await Helper.switchCamera(localStream!.getVideoTracks().first);
     }
   }
 
-  Future<void> setSpeakerphoneOn(bool enable) async {
-    await Helper.setSpeakerphoneOn(enable);
-  }
-
-  Future<void> leaveRoom() async {
-    _socket?.emit('leave-room', {'roomId': _roomId});
-
-    localStream?.getTracks().forEach((t) => t.stop());
-    await localStream?.dispose();
-    localStream = null;
-    
-    for (var pc in peerConnections.values) {
-      pc.dispose();
+  void setSpeakerphoneOn(bool enabled) {
+    if (enabled) {
+      Helper.setSpeakerphoneOn(true);
+    } else {
+      Helper.setSpeakerphoneOn(false);
     }
-    peerConnections.clear();
-    remoteStreams.clear();
-    participants.clear();
   }
 
   Future<void> dispose() async {
     await leaveRoom();
-    _socket?.dispose();
-    _socket = null;
   }
 }

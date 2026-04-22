@@ -1,5 +1,6 @@
 // webrtc multi-participant interactive video session with engagement tools
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import 'package:alumini_screen/src/alumni/shared/services/classroom_service.dart';
@@ -31,8 +32,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   bool _isMuted = false;
   bool _isCameraOff = false;
+  bool _isSpeakerOn = true;
   bool _showChat = false;
   bool _isInitialized = false;
+  bool _isLocalHandRaised = false;
+  final Set<String> _raisedHands = {};
   String _connectionState = "Connecting to classroom handshake...";
 
   @override
@@ -70,18 +74,67 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         setState(() {
           _messages.add({'from': from, 'text': message});
         });
+
+        // Universal notification for everyone
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.chat_bubble, color: Colors.white, size: 18),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      children: [
+                        TextSpan(text: "$from: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: message),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.blueAccent.withOpacity(0.9),
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            action: SnackBarAction(
+              label: "VIEW",
+              textColor: Colors.white,
+              onPressed: () => setState(() => _showChat = true),
+            ),
+          ),
+        );
       }
     };
 
-    _classroomService.onHandRaised = (from) {
+    _classroomService.onHandRaised = (from, isRaised) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("$from raised their hand! ✋"),
-            backgroundColor: Colors.blueAccent,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        setState(() {
+          if (isRaised) {
+            _raisedHands.add(from);
+          } else {
+            _raisedHands.remove(from);
+          }
+        });
+
+        if (isRaised) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("$from raised their hand! ✋"),
+              backgroundColor: Colors.blueAccent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 3),
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            ),
+          );
+        }
       }
     };
 
@@ -372,6 +425,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       itemBuilder: (context, index) {
         final p = allParticipants[index];
         final isHost = p['isHost'] == true;
+        final isHandRaised = (p['id'] == 'local' && _isLocalHandRaised) || _raisedHands.contains(p['name']);
         
         return Container(
           decoration: BoxDecoration(
@@ -491,6 +545,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                             style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)
                           ),
                         ),
+                      if (isHandRaised)
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.front_hand, color: Colors.white, size: 14),
+                        ).animate().shake(),
                       const SizedBox(width: 8),
                       const CircleAvatar(
                         radius: 14,
@@ -666,70 +729,146 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildControlBtn(
-                  icon: _isMuted ? Icons.mic_off : Icons.mic,
-                  active: !_isMuted,
-                  activeColor: Colors.blueAccent,
-                  onPressed: () {
-                    setState(() => _isMuted = !_isMuted);
-                    _classroomService.toggleAudio(!_isMuted);
-                  },
-                ),
-                _buildControlBtn(
-                  icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
-                  active: !_isCameraOff,
-                  activeColor: Colors.blueAccent,
-                  onPressed: () {
-                    setState(() => _isCameraOff = !_isCameraOff);
-                    _classroomService.toggleVideo(!_isCameraOff);
-                  },
-                ),
-                _buildControlBtn(
-                  icon: Icons.front_hand,
-                  active: false,
-                  onPressed: () {
-                    final auth = context.read<AuthProvider>();
-                    _classroomService.raiseHand(auth.userName);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text("You raised your hand! ✋"),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        backgroundColor: Colors.blueAccent,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildControlBtn(
+                    icon: _isMuted ? Icons.mic_off : Icons.mic,
+                    active: !_isMuted,
+                    activeColor: Colors.blueAccent,
+                    onPressed: () {
+                      setState(() => _isMuted = !_isMuted);
+                      _classroomService.toggleAudio(!_isMuted);
+                    },
+                  ),
+                  _buildControlBtn(
+                    icon: _isCameraOff ? Icons.videocam_off : Icons.videocam,
+                    active: !_isCameraOff,
+                    activeColor: Colors.blueAccent,
+                    onPressed: () {
+                      setState(() => _isCameraOff = !_isCameraOff);
+                      _classroomService.toggleVideo(!_isCameraOff);
+                    },
+                  ),
+                  
+                  // Audio Output Selection Menu
+                  PopupMenuButton<String>(
+                    offset: const Offset(0, -180),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    color: const Color(0xFF1E1E1E),
+                    icon: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _isSpeakerOn ? Colors.amber : Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 20),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.redAccent.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
+                      child: Icon(
+                        _isSpeakerOn ? Icons.volume_up : Icons.volume_down, 
+                        color: Colors.white, 
+                        size: 22
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.call_end, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text("LEAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
+                    onSelected: (String value) {
+                      setState(() {
+                        if (value == 'speaker') {
+                          _isSpeakerOn = true;
+                          _classroomService.setSpeakerphoneOn(true);
+                        } else {
+                          _isSpeakerOn = false;
+                          _classroomService.setSpeakerphoneOn(false);
+                        }
+                      });
+                    },
+                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                      PopupMenuItem<String>(
+                        value: 'speaker',
+                        child: Row(
+                          children: [
+                            Icon(Icons.volume_up, color: _isSpeakerOn ? Colors.amber : Colors.white70, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('External Speaker', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'earpiece',
+                        child: Row(
+                          children: [
+                            Icon(Icons.phone_in_talk, color: !_isSpeakerOn ? Colors.amber : Colors.white70, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Phone Earpiece', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'bluetooth',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.bluetooth, color: Colors.blueAccent, size: 20),
+                            const SizedBox(width: 12),
+                            const Text('Bluetooth Device', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+            
+                  // Hand Raise Toggle
+                  _buildControlBtn(
+                    icon: Icons.front_hand,
+                    active: _isLocalHandRaised,
+                    activeColor: Colors.amber.shade700,
+                    onPressed: () {
+                      setState(() {
+                        _isLocalHandRaised = !_isLocalHandRaised;
+                        final auth = context.read<AuthProvider>();
+                        _classroomService.raiseHand(auth.userName, _isLocalHandRaised);
+                      });
+                      
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_isLocalHandRaised ? "You raised your hand! ✋" : "You lowered your hand."),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          backgroundColor: _isLocalHandRaised ? Colors.blueAccent : Colors.grey[800],
+                          duration: const Duration(seconds: 2),
+                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.redAccent.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.call_end, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Text("LEAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

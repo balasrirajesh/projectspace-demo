@@ -3,7 +3,7 @@ import 'package:alumini_screen/src/alumni/chat/mentor_inbox_page.dart';
 import 'package:alumini_screen/src/student/dashboard/student_dashboard.dart';
 import 'package:alumini_screen/src/alumni/notifications/notifications_page.dart';
 import 'package:alumini_screen/src/alumni/profile/profile_page.dart';
-import 'package:alumini_screen/src/alumni/profile/profile_setup_page.dart';
+// import 'package:alumini_screen/src/alumni/profile/profile_setup_page.dart';
 import 'package:alumini_screen/src/alumni/shared/core/theme/app_theme.dart';
 import 'package:alumini_screen/src/alumni/shared/core/widgets/floating_navbar.dart';
 import 'package:alumini_screen/src/alumni/shared/providers/auth_provider.dart';
