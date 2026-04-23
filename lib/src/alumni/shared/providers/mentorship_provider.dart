@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:alumini_screen/src/alumni/shared/models/mentorship_model.dart';
 import 'package:alumini_screen/src/alumni/shared/services/mentorship_service.dart';
@@ -82,6 +83,7 @@ class MentorshipProvider with ChangeNotifier {
 
     // 1. Sync Room List via Signaling Server
     _classroomService.onRoomListUpdate = (roomData) {
+      dev.log('📊 [MENTORSHIP] Room list updated: ${roomData.length} rooms');
       _webinars = roomData.map((r) => {
         'id': r['id'],
         'title': r['title'],
@@ -96,9 +98,9 @@ class MentorshipProvider with ChangeNotifier {
     _classroomService.joinRoom(
       serverUrl: AuthProvider.getSignalingUrl(),
       roomId: 'global-lobby',
-      userName: 'Discovery-User', // Background lobby join doesn't need personal identity
+      userName: 'Discovery-User', 
       role: ClassroomRole.student,
-      useMedia: false, // Don't start cam just for the room list updates
+      useMedia: false, 
     );
 
     // 2. Load mentorship requests (Initial load from local, then sync with auth)

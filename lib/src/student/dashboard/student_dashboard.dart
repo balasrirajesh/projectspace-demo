@@ -52,7 +52,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   void _joinSession() {
-    final roomId = _roomIdController.text.trim();
+    final roomId = _roomIdController.text.trim().toLowerCase().replaceAll(' ', '-');
     if (roomId.isNotEmpty) {
       Navigator.push(
         context,

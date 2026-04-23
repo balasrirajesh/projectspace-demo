@@ -90,26 +90,30 @@ class ClassroomService {
             .setTransports(['websocket', 'polling']) 
             .setPath('/api/socket')
             .setQuery({'userName': userName})
-            .enableAutoConnect()
+            .disableAutoConnect() // CRITICAL: Disable auto-connect so we can set listeners first
             .setReconnectionAttempts(15)
             .setReconnectionDelay(2000)
             .build());
         
         _socket?.io.timeout = 45000;
+        
+        // 3. Register Listeners BEFORE connecting
         _registerBasicEvents(serverUrl, userName); 
+        
+        dev.log('📡 [RTC] Connecting socket...');
+        _socket!.connect();
+      } else {
+        // If already connected, just emit join-room
+        dev.log('📡 [RTC] Already connected, signaling join-room: $_roomId');
+        _socket!.emit('join-room', {
+          'roomId': _roomId,
+          'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
+          'userName': userName,
+          'title': title ?? roomId,
+        });
       }
-
-      // 3. Always signal JOIN for the current room
-      dev.log('📡 [RTC] Signaling join-room: $_roomId');
-      _socket!.emit('join-room', {
-        'roomId': _roomId,
-        'role': AuthProvider.isUserAdmin ? 'admin' : (_role == ClassroomRole.mentor ? 'mentor' : 'student'),
-        'userName': userName,
-        'title': title ?? roomId,
-      });
       
-      // Minor delay to allow room joining to register before calling onConnected
-      Future.delayed(const Duration(milliseconds: 100), () => onConnected?.call());
+      onConnected?.call();
     } catch (e) {
       onError?.call('Critical Handshake Error: $e');
     }

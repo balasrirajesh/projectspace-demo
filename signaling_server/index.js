@@ -141,15 +141,17 @@ io.on('connection', (socket) => {
     socket.data.roomId = roomId;
     socket.data.role = role;
 
-    // Ensure room exists (Only Mentor/Admin can initialize)
+    // Ensure room exists (Only Mentor/Admin can initialize, except for global-lobby)
     if (!rooms[roomId]) {
-      if (role === 'mentor' || role === 'admin') {
+      if (role === 'mentor' || role === 'admin' || roomId === 'global-lobby') {
         console.log(`[ROOM] Initializing room: ${roomId} by ${role}`);
         rooms[roomId] = {
           participants: {}, // socketId -> { role, userName }
           title: title || (roomId === 'global-lobby' ? 'Global Lobby' : roomId),
           startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
+        // If it's a global lobby, we should broadcast that a new room "appeared" in the list tracking
+        if (roomId === 'global-lobby') broadcastRoomList();
       } else {
         console.log(`[JOIN REJECTED] Student ${socket.id} tried to join non-existent room: ${roomId}`);
         socket.emit('error', 'This classroom has not been started by the faculty yet.');
