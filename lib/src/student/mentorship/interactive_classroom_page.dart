@@ -61,6 +61,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         setState(() {
           _remoteRenderers[id] = renderer;
           _connectionState = "Session Active";
+          
+          // CRITICAL FIX: If a stream arrives from a host, make sure we hide the waiting overlay
+          final meta = _classroomService.participants[id] ?? {};
+          final role = meta['role'];
+          if (role == 'mentor' || role == 'admin') {
+            _hasHost = true;
+          }
         });
       }
     };
@@ -169,9 +176,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     _classroomService.onConnected = () {
       if (mounted) {
         setState(() {
-          _connectionState = classroomRole == ClassroomRole.mentor 
-            ? "Live: Waiting for students..." 
-            : "Connected: Waiting for host...";
+          if (_connectionState == "Connecting to classroom handshake...") {
+            _connectionState = classroomRole == ClassroomRole.mentor 
+              ? "Live: Waiting for students..." 
+              : "Connected: Waiting for host...";
+          }
         });
       }
     };
@@ -382,7 +391,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 ),
 
                 // 2. OVERLAYS (Waiting room)
-                if (auth.role == UserRole.student && !_hasHost)
+                // HIDE if we have a host OR if we already have remote streams (as that implies the host/session is active)
+                if (auth.role == UserRole.student && !_hasHost && _remoteRenderers.isEmpty)
                   _buildWaitingRoomOverlay(),
                 
                 // 3. CHAT OVERLAY (Takes precedence when open)

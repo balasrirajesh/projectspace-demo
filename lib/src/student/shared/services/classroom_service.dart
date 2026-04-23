@@ -149,34 +149,42 @@ class ClassroomService {
 
     _socket!.on('participant-list', (data) async {
       dev.log('👥 [RTC] Discovering participants: $data');
-      final participantMap = Map<String, dynamic>.from(data as Map);
+      final Map<dynamic, dynamic> participantMap = data as Map;
       
       participantMap.forEach((id, metadata) {
         if (id != _socket!.id) {
-          participants[id] = Map<String, String>.from(metadata);
+          final Map<String, String> meta = {};
+          if (metadata is Map) {
+            metadata.forEach((key, value) {
+              meta[key.toString()] = value.toString();
+            });
+          }
+          participants[id.toString()] = meta;
           
           // Initial Host Discovery: Notify UI so it stops "Waiting"
-          final role = metadata['role'];
+          final role = meta['role'];
           if (role == 'mentor' || role == 'admin') {
-            onMentorJoined?.call(id, metadata['userName'] ?? 'Host', role: role);
+            onMentorJoined?.call(id.toString(), meta['userName'] ?? 'Host', role: role);
           }
 
           // MESH RULE: Joiner initiates to established members
-          _createOffer(id, userName);
+          _createOffer(id.toString(), userName);
         }
       });
     });
 
     _socket!.on('participant-joined', (data) {
-      final id = data['socketId'];
+      final id = data['socketId'].toString();
       dev.log('👋 [RTC] Participant entered: ${data['userName']} ($id)');
-      participants[id] = {
-        'role': data['role'],
-        'userName': data['userName']
-      };
       
-      if (data['role'] == 'mentor' || data['role'] == 'admin') {
-        onMentorJoined?.call(id, data['userName'], role: data['role']);
+      final Map<String, String> meta = {
+        'role': data['role']?.toString() ?? 'student',
+        'userName': data['userName']?.toString() ?? 'Anonymous'
+      };
+      participants[id] = meta;
+      
+      if (meta['role'] == 'mentor' || meta['role'] == 'admin') {
+        onMentorJoined?.call(id, meta['userName']!, role: meta['role']);
       }
     });
 
