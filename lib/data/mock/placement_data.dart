@@ -1,4 +1,4 @@
-import '../models/models.dart';
+import 'package:graduway/data/models/models.dart';
 
 final List<PostModel> mockPosts = [
   PostModel(

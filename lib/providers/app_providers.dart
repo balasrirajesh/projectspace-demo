@@ -1,15 +1,15 @@
+import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/models/alumni_model.dart';
-import '../data/models/models.dart';
-import '../data/models/student_model.dart';
-import '../data/mock/alumni_data.dart';
-import '../data/mock/placement_data.dart';
+import 'package:graduway/data/models/alumni_model.dart';
+import 'package:graduway/data/models/models.dart';
+import 'package:graduway/data/models/student_model.dart';
+import 'package:graduway/data/mock/alumni_data.dart';
+import 'package:graduway/data/mock/placement_data.dart';
+import 'package:graduway/models/user_role.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth State
 // ─────────────────────────────────────────────────────────────────────────────
-
-enum UserRole { guest, student, alumni, admin }
 
 class AuthState {
   final UserRole role;
@@ -412,3 +412,4 @@ final adminNavIndexProvider = StateProvider<int>((ref) => 0);
 
 // Global flag to ensure onboarding is only seen once per app session/install
 final hasSeenOnboardingProvider = StateProvider<bool>((ref) => false);
+

@@ -4,10 +4,11 @@ class AppColors {
   AppColors._();
 
   // ── Primary — Indigo ──────────────────────────────────────────────────────
-  static const Color primary        = Color(0xFF4F46E5); // indigo-600
+  static const Color primary        = Color(0xFF6366F1); // more vibrant indigo
   static const Color primaryLight   = Color(0xFF818CF8); // indigo-400
   static const Color primaryDark    = Color(0xFF3730A3); // indigo-800
   static const Color primarySurface = Color(0xFFEEF2FF); // indigo-50
+  static const Color surface        = Colors.white;
 
   // ── Student accent — Teal/Sky ─────────────────────────────────────────────
   static const Color secondary      = Color(0xFF0EA5E9); // sky-500
@@ -58,53 +59,37 @@ class AppColors {
 
   // ── Gradients ─────────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [primary, primaryLight],
+  );
+
+  static const LinearGradient secondaryGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [secondary, secondaryLight],
   );
 
   static const LinearGradient alumniGradient = LinearGradient(
-    colors: [Color(0xFF059669), Color(0xFF0EA5E9)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
-
-  static const LinearGradient adminGradient = LinearGradient(
-    colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
-
-  static const LinearGradient skyGradient = LinearGradient(
-    colors: [Color(0xFF0EA5E9), Color(0xFF4F46E5)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
-
-  static const LinearGradient cardGradient = LinearGradient(
-    colors: [Color(0xFFFFFFFF), Color(0xFFFAFAFF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient bgGradient = LinearGradient(
-    colors: [Color(0xFFF8F9FF), Color(0xFFEEF2FF)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
-
-  static const LinearGradient successGradient = LinearGradient(
-    colors: [Color(0xFF10B981), Color(0xFF059669)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [alumni, alumniLight],
   );
 
   // ── Shadows ───────────────────────────────────────────────────────────────
-  static List<BoxShadow> get cardShadow => [
+  static List<BoxShadow> get softShadow => [
     BoxShadow(
-      color: const Color(0xFF4F46E5).withOpacity(0.06),
+      color: Colors.black.withOpacity(0.04),
       blurRadius: 16,
       offset: const Offset(0, 4),
+    ),
+  ];
+
+  static List<BoxShadow> get primaryShadow => [
+    BoxShadow(
+      color: primary.withOpacity(0.2),
+      blurRadius: 20,
+      offset: const Offset(0, 8),
     ),
   ];
 
@@ -115,4 +100,15 @@ class AppColors {
       offset: const Offset(0, 8),
     ),
   ];
+
+  // ── Aliases for backward compatibility ────────────────────────────────────
+  static const Color background = bgPage;
+  static const Color textLight  = textMuted;
+  static const LinearGradient bgGradient = LinearGradient(
+    colors: [Color(0xFFF8F9FF), Color(0xFFEEF2FF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+  static const LinearGradient cardGradient = secondaryGradient;
+  static List<BoxShadow> get cardShadow => softShadow;
 }

@@ -1,4 +1,4 @@
-import '../models/alumni_model.dart';
+import 'package:graduway/data/models/alumni_model.dart';
 
 const List<AlumniModel> mockAlumni = [
   AlumniModel(

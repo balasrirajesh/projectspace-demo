@@ -1,28 +1,44 @@
+import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 // ignore_for_file: unused_import
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../screens/splash/splash_screen.dart';
-import '../screens/onboarding/onboarding_screen.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/home/home_screen.dart';
-import '../screens/alumni/alumni_list_screen.dart';
-import '../screens/alumni/alumni_profile_screen.dart';
-import '../screens/qa/qa_screen.dart';
-import '../screens/roadmap/roadmap_screen.dart';
-import '../screens/placement/placement_reality_screen.dart';
-import '../screens/skill_package/skill_package_screen.dart';
-import '../screens/events/events_screen.dart';
-import '../screens/gamification/badges_screen.dart';
-import '../screens/profile/profile_screen.dart';
-import '../screens/shell/student_shell.dart';
-import '../screens/shell/alumni_shell.dart';
-import '../screens/shell/admin_shell.dart';
-import '../screens/alumni_dashboard/alumni_home_screen.dart';
-import '../screens/alumni_dashboard/student_questions_screen.dart';
-import '../screens/admin/admin_overview_screen.dart';
-import '../screens/admin/admin_users_screen.dart';
-import '../providers/app_providers.dart';
+import 'package:graduway/models/user_role.dart';
+import 'package:graduway/auth/splash/splash_screen.dart';
+import 'package:graduway/auth/onboarding/onboarding_screen.dart';
+import 'package:graduway/auth/login/login_page.dart';
+import 'package:graduway/auth/signup/signup_page.dart';
+import 'package:graduway/student/home/home_screen.dart';
+import 'package:graduway/alumni/alumni_list_screen.dart';
+import 'package:graduway/alumni/alumni_profile_screen.dart';
+import 'package:graduway/student/qa/qa_screen.dart';
+import 'package:graduway/student/roadmap/roadmap_screen.dart';
+import 'package:graduway/student/placement/placement_reality_screen.dart';
+import 'package:graduway/student/skill_package/skill_package_screen.dart';
+import 'package:graduway/student/events/events_screen.dart';
+import 'package:graduway/student/gamification/badges_screen.dart';
+import 'package:graduway/profile/profile_screen.dart';
+import 'package:graduway/routing/shells/student_shell.dart';
+import 'package:graduway/routing/shells/alumni_shell.dart';
+import 'package:graduway/routing/shells/admin_shell.dart';
+import 'package:graduway/alumni/dashboard/alumni_home_screen.dart';
+import 'package:graduway/alumni/dashboard/student_questions_screen.dart';
+import 'package:graduway/admin/admin_overview_screen.dart';
+import 'package:graduway/admin/admin_users_screen.dart';
+import 'package:graduway/providers/app_providers.dart';
+
+// Rajesh Feature Imports
+import 'package:graduway/widgets/interactive_classroom_page.dart';
+import 'package:graduway/student/mentorship/sessions_page.dart';
+import 'package:graduway/student/profile/mentorship_page.dart';
+import 'package:graduway/alumni/mentorship/alumni_requests_page.dart' as alumni_requests;
+import 'package:graduway/alumni/chat/mentor_inbox_page.dart' as alumni_chat;
+import 'package:graduway/alumni/profile/profile_page.dart' as rajesh_alumni_profile;
+import 'package:graduway/admin/dashboard/admin_main_layout.dart';
+import 'package:graduway/admin/sessions/session_control_page.dart';
+import 'package:graduway/admin/connections/connection_monitor_page.dart';
+import 'package:graduway/admin/announcements/announcements_page.dart';
+import 'package:graduway/admin/users/user_management_page.dart';
 
 // Routes that do NOT require login
 const _publicRoutes = ['/splash', '/onboarding', '/login'];
@@ -68,12 +84,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => StudentShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-          GoRoute(
-              path: '/alumni', builder: (_, __) => const AlumniListScreen()),
           GoRoute(path: '/qa', builder: (_, __) => const QAScreen()),
-          GoRoute(path: '/roadmap', builder: (_, __) => const RoadmapScreen()),
-          GoRoute(path: '/badges', builder: (_, __) => const BadgesScreen()),
+          GoRoute(
+              path: '/mentorship',
+              builder: (_, __) => const MentorshipPage()),
+          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         ],
+      ),
+
+      // Student Top-Level Routes (Pushed from Dashboard cards)
+      GoRoute(path: '/alumni', builder: (_, __) => const AlumniListScreen()),
+      GoRoute(path: '/roadmap', builder: (_, __) => const RoadmapScreen()),
+      GoRoute(path: '/badges', builder: (_, __) => const BadgesScreen()),
+      GoRoute(path: '/sessions', builder: (_, __) => const SessionsPage()),
+      GoRoute(path: '/classroom', builder: (_, __) => const SessionsPage()),
+
+      // Interactive Classroom
+      GoRoute(
+        path: '/classroom/:id',
+        builder: (context, state) => InteractiveClassroomPage(
+          roomId: state.pathParameters['id']!,
+        ),
       ),
 
       // ─── Alumni Shell ───────────────────────────────────────────────────
@@ -84,19 +115,33 @@ final routerProvider = Provider<GoRouter>((ref) {
               path: '/alumni-home',
               builder: (_, __) => const AlumniHomeScreen()),
           GoRoute(
-              path: '/alumni-questions',
-              builder: (_, __) => const StudentQuestionsScreen()),
+              path: '/alumni-chat',
+              builder: (_, __) => const alumni_chat.MentorInboxPage()),
+          GoRoute(
+              path: '/alumni-requests',
+              builder: (_, __) => const alumni_requests.AlumniRequestsPage()),
           GoRoute(
               path: '/alumni-profile',
-              builder: (_, __) =>
-                  const ProfileScreen()), // reuse profile for now
+              builder: (_, __) => const rajesh_alumni_profile.ProfileScreen()),
         ],
       ),
 
-      // ─── Admin Shell ────────────────────────────────────────────────────
+      // Alumni Top-Level Routes
+      GoRoute(
+          path: '/alumni-questions',
+          builder: (_, __) => const StudentQuestionsScreen()),
+      GoRoute(
+          path: '/alumni-sessions',
+          builder: (_, __) => const SessionsPage()),
+      GoRoute(
+          path: '/alumni-mentorship',
+          builder: (_, __) => const MentorshipPage()),
+
+      // ─── Admin Shell (NagaSai bottom-nav + Rajesh drawer pages) ──────────
       ShellRoute(
         builder: (context, state, child) => AdminShell(child: child),
         routes: [
+          // NagaSai routes
           GoRoute(
               path: '/admin-home',
               builder: (_, __) => const AdminOverviewScreen()),
@@ -105,7 +150,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               builder: (_, __) => const AdminUsersScreen()),
           GoRoute(
               path: '/admin-profile',
-              builder: (_, __) => const ProfileScreen()), // reuse profile
+              builder: (_, __) => const ProfileScreen()),
+
+          // Rajesh routes (accessible from drawer)
+          GoRoute(
+              path: '/admin-sessions',
+              builder: (_, __) => const SessionControlPage()),
+          GoRoute(
+              path: '/admin-connections',
+              builder: (_, __) => const ConnectionMonitorPage()),
+          GoRoute(
+              path: '/admin-announcements',
+              builder: (_, __) => const AnnouncementsPage()),
+          GoRoute(
+              path: '/admin-user-management',
+              builder: (_, __) => const UserManagementPage()),
         ],
       ),
 
@@ -125,6 +184,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/skill-package',
           builder: (_, __) => const SkillPackageScreen()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+
+      // ─── Fullscreen session routes (no shell / no navbar) ─────────────
+      GoRoute(
+        path: '/classroom/:roomId',
+        builder: (context, state) => InteractiveClassroomPage(
+          roomId: state.pathParameters['roomId'] ?? 'lobby',
+        ),
+      ),
+      GoRoute(
+        path: '/alumni-classroom/:roomId',
+        builder: (context, state) => InteractiveClassroomPage(
+          roomId: state.pathParameters['roomId'] ?? 'lobby',
+        ),
+      ),
     ],
   );
 });
+
