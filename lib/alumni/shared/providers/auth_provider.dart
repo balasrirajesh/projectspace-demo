@@ -285,7 +285,7 @@ class AuthProvider with ChangeNotifier {
         final backendRole = data['role'];
         if (backendRole == 'admin') {
           _role = UserRole.admin;
-        } else if (backendRole == 'mentor') {
+        } else if (backendRole == 'mentor' || backendRole == 'alumni') {
           _role = UserRole.mentor;
         } else {
           _role = UserRole.student;

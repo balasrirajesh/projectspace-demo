@@ -23,7 +23,10 @@ class AlumniShell extends ConsumerWidget {
 
     return Scaffold(
       extendBody: true, // Required for floating nav bar
-      body: child,
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 110),
+        child: child,
+      ),
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24, top: 0),

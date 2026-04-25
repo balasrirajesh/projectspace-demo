@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:graduway/theme/app_colors.dart';
 import 'package:graduway/providers/app_providers.dart';
-import 'package:graduway/data/mock/alumni_data.dart';
-import 'package:graduway/data/mock/placement_data.dart';
 import 'package:graduway/widgets/custom_app_bar.dart';
 import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 import 'package:graduway/widgets/interactive_classroom_page.dart';
@@ -66,6 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -368,40 +367,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 12),
             SizedBox(
               height: 180,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: mockAlumni.length,
-                itemBuilder: (context, i) {
-                  final alu = mockAlumni[i];
-                  return GestureDetector(
-                    onTap: () => context.push('/alumni/${alu.id}'),
-                    child: Container(
-                      width: 140,
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgCard,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
+              child: ref.watch(alumniListProvider).when(
+                data: (alumni) => ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: alumni.length > 5 ? 5 : alumni.length,
+                  itemBuilder: (context, i) {
+                    final alu = alumni[i];
+                    return GestureDetector(
+                      onTap: () => context.push('/alumni/${alu.id}'),
+                      child: Container(
+                        width: 140,
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgCard,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            CircleAvatar(radius: 28, backgroundImage: NetworkImage(alu.photoUrl.isNotEmpty ? alu.photoUrl : 'https://i.pravatar.cc/150')),
+                            const SizedBox(height: 12),
+                            Text(alu.name.split(' ').first, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                            Text(alu.company, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                              child: Text('₹${alu.package}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          CircleAvatar(radius: 28, backgroundImage: NetworkImage(alu.photoUrl)),
-                          const SizedBox(height: 12),
-                          Text(alu.name.split(' ').first, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                          Text(alu.company, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                            child: Text('₹${alu.package}L', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: Duration(milliseconds: 400 + (i * 100)));
-                },
+                    ).animate().fadeIn(delay: Duration(milliseconds: 400 + (i * 100)));
+                  },
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error: $err')),
               ),
             ),
 
@@ -413,7 +416,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Text('Trending Q&A', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             ),
             const SizedBox(height: 16),
-            ...mockQA.take(2).map((q) => Padding(
+            ...ref.watch(trendingQAProvider).map((q) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               child: Card(
                 child: ListTile(
@@ -421,7 +424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   subtitle: Text('${q.answers.length} answers • ${q.upvotes} upvotes', style: const TextStyle(fontSize: 11)),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
-                    ref.read(studentNavIndexProvider.notifier).state = 4;
+                    ref.read(studentNavIndexProvider.notifier).state = 1; // Assuming Q&A is at index 1
                     context.go('/qa');
                   },
                 ),

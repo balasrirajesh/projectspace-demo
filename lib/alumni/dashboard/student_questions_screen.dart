@@ -32,45 +32,51 @@ class _StudentQuestionsScreenState extends ConsumerState<StudentQuestionsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final allQuestions = ref.watch(qaProvider);
+    final allQuestionsAsync = ref.watch(qaProvider);
     final alumni = ref.watch(authProvider).alumni;
     
-    final unanswered = allQuestions.where((q) => !q.isAnswered).toList();
-    final myAnswers = allQuestions.where((q) => q.answers.any((a) => a.alumniId == alumni?.id)).toList();
+    return allQuestionsAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+      data: (allQuestions) {
+        final unanswered = allQuestions.where((q) => !q.isAnswered).toList();
+        final myAnswers = allQuestions.where((q) => q.answers.any((a) => a.alumniId == alumni?.id)).toList();
 
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Student Questions',
-        showBackButton: false,
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: AppColors.bgCard,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.alumni,
-              unselectedLabelColor: AppColors.textMuted,
-              indicatorColor: AppColors.alumni,
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-              tabs: const [
-                Tab(text: 'Unanswered'),
-                Tab(text: 'My Answers'),
-              ],
-            ),
+        return Scaffold(
+          appBar: CustomAppBar(
+            title: 'Student Questions',
+            showBackButton: false,
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _QuestionList(questions: unanswered, isUnansweredTab: true),
-                _QuestionList(questions: myAnswers, isUnansweredTab: false),
-              ],
-            ),
+          body: Column(
+            children: [
+              Container(
+                color: AppColors.bgCard,
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AppColors.alumni,
+                  unselectedLabelColor: AppColors.textMuted,
+                  indicatorColor: AppColors.alumni,
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+                  tabs: const [
+                    Tab(text: 'Unanswered'),
+                    Tab(text: 'My Answers'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _QuestionList(questions: unanswered, isUnansweredTab: true),
+                    _QuestionList(questions: myAnswers, isUnansweredTab: false),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -231,28 +237,40 @@ class _AlumniQuestionCard extends ConsumerWidget {
             ElevatedButton(
               onPressed: () {
                 if (controller.text.trim().isEmpty) return;
+                final alumni = ref.read(authProvider).alumni;
+                if (alumni == null) return;
+
+                final answerMap = {
+                  'id': 'ans_${DateTime.now().millisecondsSinceEpoch}',
+                  'alumniId': alumni.id,
+                  'alumniName': alumni.name,
+                  'alumniCompany': alumni.company,
+                  'alumniPhotoUrl': alumni.photoUrl,
+                  'answer': controller.text.trim(),
+                  'upvotes': 0,
+                  'answeredAt': DateTime.now().toIso8601String(),
+                };
                 
-                final alumni = ref.read(authProvider).alumni!;
-                final newAnswer = QAAnswer(
-                  id: 'ans_${DateTime.now().millisecondsSinceEpoch}',
-                  alumniId: alumni.id,
-                  alumniName: alumni.name,
-                  alumniCompany: alumni.company,
-                  alumniPhotoUrl: alumni.photoUrl,
-                  answer: controller.text.trim(),
-                  upvotes: 0,
-                  answeredAt: DateTime.now(),
-                );
-                
-                ref.read(qaProvider.notifier).addAnswer(question.id, newAnswer);
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Answer posted! Thank you for helping juniors.'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
+                ref.read(apiServiceProvider).postAnswer(question.id, answerMap).then((success) {
+                  if (success) {
+                    ref.invalidate(qaProvider);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Answer posted! Thank you for helping juniors.'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to post answer.')),
+                      );
+                    }
+                  }
+                });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.alumni,

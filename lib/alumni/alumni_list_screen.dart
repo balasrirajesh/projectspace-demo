@@ -15,16 +15,6 @@ class AlumniListScreen extends ConsumerStatefulWidget {
 }
 
 class _AlumniListScreenState extends ConsumerState<AlumniListScreen> {
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) setState(() => _isLoading = false);
-    });
-  }
-
   final _branches = ['All', 'CSE', 'ECE', 'MECH', 'EEE', 'IT'];
 
   @override
@@ -108,29 +98,35 @@ class _AlumniListScreenState extends ConsumerState<AlumniListScreen> {
 
               // Alumni list
               Expanded(
-                child: _isLoading
-                    ? _buildShimmer()
-                    : alumni.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Text('🔍', style: TextStyle(fontSize: 48)),
-                                SizedBox(height: 12),
-                                Text('No alumni found',
-                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
-                            itemCount: alumni.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, i) => _AlumniCard(alumni: alumni[i], index: i)
-                                .animate(delay: Duration(milliseconds: i * 60))
-                                .fadeIn(duration: 350.ms)
-                                .slideX(begin: 0.15, end: 0, duration: 350.ms),
-                          ),
+                child: ref.watch(alumniListProvider).when(
+                  data: (_) {
+                    final filtered = ref.watch(searchedAlumniProvider);
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text('🔍', style: TextStyle(fontSize: 48)),
+                            SizedBox(height: 12),
+                            Text('No alumni found',
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _AlumniCard(alumni: filtered[i], index: i)
+                          .animate(delay: Duration(milliseconds: i * 60))
+                          .fadeIn(duration: 350.ms)
+                          .slideX(begin: 0.15, end: 0, duration: 350.ms),
+                    );
+                  },
+                  loading: () => _buildShimmer(),
+                  error: (err, _) => Center(child: Text('Error: $err')),
+                ),
               ),
             ],
           ),

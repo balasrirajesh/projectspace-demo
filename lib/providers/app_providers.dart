@@ -3,9 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graduway/data/models/alumni_model.dart';
 import 'package:graduway/data/models/models.dart';
 import 'package:graduway/data/models/student_model.dart';
-import 'package:graduway/data/mock/alumni_data.dart';
-import 'package:graduway/data/mock/placement_data.dart';
 import 'package:graduway/models/user_role.dart';
+import 'package:graduway/shared/services/api_service.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Services
+// ─────────────────────────────────────────────────────────────────────────────
+
+final apiServiceProvider = Provider((ref) => ApiService());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth State
@@ -71,56 +76,105 @@ String _nameFromEmail(String email) {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  void loginAsStudent({required String email}) {
-    final name = _nameFromEmail(email);
-    state = AuthState(
-      role: UserRole.student,
-      isLoggedIn: true,
-      loginEmail: email,
-      loginName: name,
-      student: StudentModel(
-        id: 's_current',
-        name: name,
-        email: email,
-        branch: 'CSE',
-        year: 3,
-        targetCareer: '',
-        skills: const [],
-        careerScore: 0,
-        earnedBadges: const [],
-        questionsAsked: 0,
-        mentorSessionsAttended: 0,
-        photoUrl: 'https://i.pravatar.cc/150?img=52',
-        rollNumber: '21K81A0512',
-      ),
-    );
-  }
+  /// Synchronize this Riverpod state with the Legacy AuthProvider.
+  /// Called from the UI or via a listener in main.dart.
+  void syncWithLegacy(AuthProvider legacy) {
+    // 1. Handle Logout
+    if (legacy.userId == null) {
+      if (state.isLoggedIn) logout();
+      return;
+    }
 
-  void loginAsAlumni({required String email}) {
-    final name = _nameFromEmail(email);
-    final loggedInAlumni = mockAlumni.first;
+    // 2. Prevent Redundant Updates
+    if (state.isLoggedIn && 
+        state.student?.id == legacy.userId && 
+        state.alumni?.id == legacy.userId &&
+        state.loginName == legacy.userName &&
+        state.bio == legacy.bio) {
+      return;
+    }
+
+    final name = legacy.userName;
+    final email = legacy.email;
+    final role = legacy.role;
+
     state = AuthState(
-      role: UserRole.alumni,
+      role: role,
       isLoggedIn: true,
       loginEmail: email,
       loginName: name,
-      alumni: loggedInAlumni,
+      bio: legacy.bio,
+      student: role == UserRole.student
+          ? StudentModel(
+              id: legacy.userId!,
+              name: name,
+              email: email,
+              branch: legacy.branch,
+              year: int.tryParse(legacy.graduationYear) ?? 3,
+              targetCareer: '',
+              skills: legacy.skills,
+              careerScore: 42, // Would be fetched from backend in production
+              photoUrl: legacy.profilePictureUrl.isNotEmpty ? legacy.profilePictureUrl : 'https://i.pravatar.cc/150',
+              rollNumber: 'N/A',
+            )
+          : null,
+      alumni: role == UserRole.mentor
+          ? AlumniModel(
+              id: legacy.userId!,
+              name: name,
+              company: legacy.company,
+              role: legacy.techField,
+              photoUrl: legacy.profilePictureUrl.isNotEmpty ? legacy.profilePictureUrl : 'https://i.pravatar.cc/150',
+              package: 0, // Fetched from alumni profile
+              branch: legacy.branch,
+              skills: legacy.skills,
+              menteeCount: 0,
+            )
+          : null,
     );
   }
 
   void loginAsAdmin({required String email}) {
-    final name = _nameFromEmail(email);
-    state = AuthState(
-      role: UserRole.admin,
+    state = state.copyWith(
       isLoggedIn: true,
+      role: UserRole.admin,
       loginEmail: email,
-      loginName: name,
+      loginName: _nameFromEmail(email),
     );
   }
 
-  /// Save name and bio edits from the Edit Profile sheet (works for all roles).
-  void updateUserProfile({required String name, required String bio}) {
-    state = state.copyWith(loginName: name, bio: bio);
+  void loginAsAlumni({required String email}) {
+    state = state.copyWith(
+      isLoggedIn: true,
+      role: UserRole.mentor,
+      loginEmail: email,
+      loginName: _nameFromEmail(email),
+      alumni: AlumniModel(
+        id: 'AL-${DateTime.now().millisecondsSinceEpoch}',
+        name: _nameFromEmail(email),
+        email: email,
+      ),
+    );
+  }
+
+  void loginAsStudent({required String email}) {
+    state = state.copyWith(
+      isLoggedIn: true,
+      role: UserRole.student,
+      loginEmail: email,
+      loginName: _nameFromEmail(email),
+      student: StudentModel(
+        id: 'ST-${DateTime.now().millisecondsSinceEpoch}',
+        name: _nameFromEmail(email),
+        email: email,
+        branch: 'CSE',
+        year: 3,
+      ),
+    );
+  }
+
+  void updateUserProfile({String? bio, String? name}) {
+    state = state.copyWith(bio: bio, loginName: name);
   }
 
   void logout() {
@@ -316,64 +370,18 @@ final careerScoreProvider =
 // Shared Q&A State
 // ─────────────────────────────────────────────────────────────────────────────
 
-class QANotifier extends StateNotifier<List<QAModel>> {
-  QANotifier() : super(mockQA);
-
-  void addQuestion(QAModel question) {
-    state = [question, ...state];
-  }
-
-  void upvoteQuestion(String questionId) {
-    state = state.map((q) {
-      if (q.id == questionId) {
-        return QAModel(
-          id: q.id,
-          question: q.question,
-          askedBy: q.askedBy,
-          askedById: q.askedById,
-          timestamp: q.timestamp,
-          upvotes: q.upvotes + 1,
-          tags: q.tags,
-          answers: q.answers,
-          isAnswered: q.isAnswered,
-        );
-      }
-      return q;
-    }).toList();
-  }
-
-  void addAnswer(String questionId, QAAnswer answer) {
-    state = state.map((q) {
-      if (q.id == questionId) {
-        return QAModel(
-          id: q.id,
-          question: q.question,
-          askedBy: q.askedBy,
-          askedById: q.askedById,
-          timestamp: q.timestamp,
-          upvotes: q.upvotes,
-          tags: q.tags,
-          answers: [...q.answers, answer],
-          isAnswered: true,
-        );
-      }
-      return q;
-    }).toList();
-  }
-}
-
-final qaProvider = StateNotifierProvider<QANotifier, List<QAModel>>(
-  (ref) => QANotifier(),
-);
-
-final unansweredQAProvider = Provider<List<QAModel>>((ref) {
-  return ref.watch(qaProvider).where((q) => !q.isAnswered).toList();
+final qaProvider = FutureProvider<List<QAModel>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchQA();
 });
 
 final trendingQAProvider = Provider<List<QAModel>>((ref) {
-  final all = ref.watch(qaProvider);
+  final all = ref.watch(qaProvider).value ?? [];
   final sorted = [...all]..sort((a, b) => b.upvotes.compareTo(a.upvotes));
   return sorted.take(5).toList();
+});
+
+final unansweredQAProvider = Provider<List<QAModel>>((ref) {
+  return (ref.watch(qaProvider).value ?? []).where((q) => !q.isAnswered).toList();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -383,10 +391,36 @@ final trendingQAProvider = Provider<List<QAModel>>((ref) {
 final alumniSearchProvider = StateProvider<String>((ref) => '');
 final selectedBranchProvider = StateProvider<String>((ref) => 'All');
 
+final alumniListProvider = FutureProvider<List<AlumniModel>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchAlumni();
+});
+
+final studentListProvider = FutureProvider<List<StudentModel>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchStudents();
+});
+
+final placementStoriesProvider = FutureProvider<List<dynamic>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchPlacementStories();
+});
+
+final skillPackageProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchSkillPackages();
+});
+
+final eventsProvider = FutureProvider<List<dynamic>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchEvents();
+});
+
+final badgesProvider = FutureProvider<List<dynamic>>((ref) async {
+  return ref.watch(apiServiceProvider).fetchBadges();
+});
+
 final searchedAlumniProvider = Provider<List<AlumniModel>>((ref) {
+  final allAlumni = ref.watch(alumniListProvider).value ?? [];
   final query = ref.watch(alumniSearchProvider).toLowerCase();
   final branch = ref.watch(selectedBranchProvider);
-  return mockAlumni.where((a) {
+  
+  return allAlumni.where((a) {
     final matchesBranch = branch == 'All' || a.branch == branch;
     final matchesQuery = query.isEmpty ||
         a.name.toLowerCase().contains(query) ||

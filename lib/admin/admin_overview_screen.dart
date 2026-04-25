@@ -12,38 +12,61 @@ import 'package:graduway/admin/announcements/announcements_page.dart';
 import 'package:graduway/admin/connections/connection_monitor_page.dart';
 import 'package:graduway/admin/users/user_management_page.dart';
 
-class AdminOverviewScreen extends StatelessWidget {
+import 'package:graduway/admin/shared/providers/admin_provider.dart';
+
+class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({super.key});
 
   @override
+  State<AdminOverviewScreen> createState() => _AdminOverviewScreenState();
+}
+
+class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final admin = legacy.Provider.of<AdminProvider>(context, listen: false);
+      admin.fetchStats();
+      admin.fetchActiveSessions();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CustomAppBar(
-        title: 'Admin Console',
-        showBackButton: false,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Platform Status', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 20),
-            
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
+    return legacy.Consumer<AdminProvider>(
+      builder: (context, admin, _) => Scaffold(
+        appBar: const CustomAppBar(
+          title: 'Admin Console',
+          showBackButton: false,
+        ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await admin.fetchStats();
+            await admin.fetchActiveSessions();
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatCard(label: 'Total Students', value: '1,240', icon: Icons.school_rounded, color: AppColors.primary),
-                _StatCard(label: 'Verified Alumni', value: '156', icon: Icons.verified_user_rounded, color: AppColors.alumni),
-                _StatCard(label: 'Active Q&A', value: '432', icon: Icons.forum_rounded, color: AppColors.secondary),
-                _StatCard(label: 'Upcoming Events', value: '12', icon: Icons.event_available_rounded, color: AppColors.admin),
-              ],
-            ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
+                const Text('Platform Status', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 20),
+                
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.5,
+                  children: [
+                    _StatCard(label: 'Total Students', value: admin.totalStudents.toString(), icon: Icons.school_rounded, color: AppColors.primary),
+                    _StatCard(label: 'Verified Alumni', value: admin.verifiedAlumni.toString(), icon: Icons.verified_user_rounded, color: AppColors.alumni),
+                    _StatCard(label: 'Active Q&A', value: admin.activeQA.toString(), icon: Icons.forum_rounded, color: AppColors.secondary),
+                    _StatCard(label: 'Upcoming Events', value: admin.upcomingEvents.toString(), icon: Icons.event_available_rounded, color: AppColors.admin),
+                  ],
+                ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
 
             const SizedBox(height: 32),
 
@@ -104,42 +127,47 @@ class AdminOverviewScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // ── Rajesh: Live Classroom Oversight ──────────────────────────
-            legacy.Consumer<MentorshipProvider>(
-              builder: (context, provider, _) {
-                final sessions = provider.webinars;
-                if (sessions.isEmpty) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Live Classroom Oversight",
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E293B)),
+            // Live Classroom Oversight
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Live Classroom Oversight",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B)),
+                ),
+                const SizedBox(height: 16),
+                if (admin.activeSessionsList.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.bgCard,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
-                        boxShadow: AppColors.cardShadow,
-                      ),
-                      child: Column(
-                        children: sessions
-                            .map((s) => _buildLiveSessionRow(context, s))
-                            .toList(),
-                      ),
+                    child: const Text('No active sessions currently.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted)),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                      boxShadow: AppColors.cardShadow,
                     ),
-                    const SizedBox(height: 32),
-                  ],
-                ).animate().fadeIn(delay: 500.ms);
-              },
-            ),
+                    child: Column(
+                      children: admin.activeSessionsList
+                          .map((s) => _buildLiveSessionRow(context, s))
+                          .toList(),
+                    ),
+                  ),
+                const SizedBox(height: 32),
+              ],
+            ).animate().fadeIn(delay: 500.ms),
 
             // ── Rajesh: Admin Quick Actions ─────────────────────────────
             const Text('Admin Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
@@ -183,15 +211,17 @@ class AdminOverviewScreen extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateClassDialog(context),
-        backgroundColor: const Color(0xFF1E293B),
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text("Create Live Lab",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ).animate().fadeIn(delay: 800.ms),
-    );
-  }
+    ),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: () => _showCreateClassDialog(context),
+      backgroundColor: const Color(0xFF1E293B),
+      icon: const Icon(Icons.add_rounded, color: Colors.white),
+      label: const Text("Create Live Lab",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    ).animate().fadeIn(delay: 800.ms),
+  ),
+);
+}
 
   void _showReportedContentSheet(BuildContext context) {
     final reports = [

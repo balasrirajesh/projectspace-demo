@@ -134,4 +134,31 @@ class MentorshipService {
   Future<void> seedData() async {
     await fetchRequests();
   }
+
+  /// Creates a new persistent webinar session in the backend.
+  Future<bool> createWebinar({
+    required String title,
+    required String mentorId,
+    required String mentorName,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${AuthProvider.getBaseUrl("rooms")}"),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({
+          "id": title.toLowerCase().replaceAll(' ', '-'),
+          "title": title,
+          "mentorId": mentorId,
+          "mentorName": mentorName,
+          "startTime": DateTime.now().toIso8601String(),
+          "isLive": true,
+          "attendees": 0,
+        }),
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      debugPrint("Error creating webinar: $e");
+      return false;
+    }
+  }
 }

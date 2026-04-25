@@ -27,6 +27,23 @@ class PostModel {
     required this.isAnonymous,
     required this.postedAt,
   });
+
+  factory PostModel.fromJson(Map<String, dynamic> json) {
+    return PostModel(
+      id: json['id'] ?? '',
+      alumniId: json['alumniId'] ?? '',
+      alumniName: json['alumniName'] ?? '',
+      alumniCompany: json['alumniCompany'] ?? '',
+      alumniPhotoUrl: json['alumniPhotoUrl'] ?? '',
+      content: json['content'] ?? '',
+      type: json['type'] ?? 'advice',
+      tags: List<String>.from(json['tags'] ?? []),
+      likes: json['likes'] ?? 0,
+      saves: json['saves'] ?? 0,
+      isAnonymous: json['isAnonymous'] ?? false,
+      postedAt: DateTime.tryParse(json['postedAt'] ?? '') ?? DateTime.now(),
+    );
+  }
 }
 
 // ─── Q&A Question ─────────────────────────────────────────────────────────────
@@ -52,6 +69,22 @@ class QAModel {
     required this.answers,
     required this.isAnswered,
   });
+
+  factory QAModel.fromJson(Map<String, dynamic> json) {
+    return QAModel(
+      id: json['id'] ?? '',
+      question: json['question'] ?? '',
+      askedBy: json['askedBy'] ?? '',
+      askedById: json['askedById'] ?? '',
+      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      upvotes: json['upvotes'] ?? 0,
+      tags: List<String>.from(json['tags'] ?? []),
+      answers: (json['answers'] as List? ?? [])
+          .map((a) => QAAnswer.fromJson(a))
+          .toList(),
+      isAnswered: json['isAnswered'] ?? false,
+    );
+  }
 }
 
 // ─── Q&A Answer ───────────────────────────────────────────────────────────────
@@ -77,6 +110,20 @@ class QAAnswer {
     required this.upvotes,
     required this.answeredAt,
   });
+
+  factory QAAnswer.fromJson(Map<String, dynamic> json) {
+    return QAAnswer(
+      id: json['id'] ?? '',
+      alumniId: json['alumniId'] ?? '',
+      alumniName: json['alumniName'] ?? '',
+      alumniCompany: json['alumniCompany'] ?? '',
+      alumniPhotoUrl: json['alumniPhotoUrl'] ?? '',
+      answer: json['answer'] ?? '',
+      isBestAnswer: json['isBestAnswer'] ?? false,
+      upvotes: json['upvotes'] ?? 0,
+      answeredAt: DateTime.tryParse(json['answeredAt'] ?? '') ?? DateTime.now(),
+    );
+  }
 }
 
 // ─── Event ────────────────────────────────────────────────────────────────────
@@ -102,6 +149,20 @@ class EventModel {
     required this.registeredCount,
     required this.isRsvped,
   });
+
+  factory EventModel.fromJson(Map<String, dynamic> json) {
+    return EventModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      hostAlumniName: json['hostAlumniName'] ?? '',
+      hostCompany: json['hostCompany'] ?? '',
+      eventDate: DateTime.tryParse(json['eventDate'] ?? '') ?? DateTime.now(),
+      type: json['type'] ?? 'webinar',
+      registeredCount: json['registeredCount'] ?? 0,
+      isRsvped: json['isRsvped'] ?? false,
+    );
+  }
 }
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
@@ -121,4 +182,15 @@ class BadgeModel {
     required this.isEarned,
     required this.category,
   });
+
+  factory BadgeModel.fromJson(Map<String, dynamic> json) {
+    return BadgeModel(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      icon: json['icon'] ?? '🏅',
+      isEarned: json['isEarned'] ?? false,
+      category: json['category'] ?? '',
+    );
+  }
 }

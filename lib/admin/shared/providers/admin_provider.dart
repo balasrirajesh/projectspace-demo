@@ -23,12 +23,16 @@ class AdminProvider with ChangeNotifier {
   int _verifiedAlumni = 0;
   int _totalConnections = 0;
   int _activeSessions = 0;
+  int _activeQA = 0;
+  int _upcomingEvents = 0;
 
   int get totalStudents => _totalStudents;
   int get totalAlumni => _totalAlumni;
   int get verifiedAlumni => _verifiedAlumni;
   int get totalConnections => _totalConnections;
   int get activeSessionsCount => _activeSessions;
+  int get activeQA => _activeQA;
+  int get upcomingEvents => _upcomingEvents;
 
   // Session Management
   List<dynamic> _activeSessionsSub = []; // renamed to avoid conflict with count
@@ -58,6 +62,8 @@ class AdminProvider with ChangeNotifier {
         _verifiedAlumni = data['verifiedAlumni'] ?? 0;
         _totalConnections = data['totalConnections'] ?? 0;
         _activeSessions = data['activeSessions'] ?? 0;
+        _activeQA = data['activeQA'] ?? 0;
+        _upcomingEvents = data['upcomingEvents'] ?? 0;
       }
     } catch (e) {
       _error = e.toString();

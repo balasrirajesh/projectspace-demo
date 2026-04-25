@@ -192,9 +192,23 @@ class MentorshipProvider with ChangeNotifier {
   }
 
   /// Starts a new webinar session.
-  void startNewWebinar(String title) {
-    // This will emit to the server via joinRoom when the mentor actually enters the page
+  Future<bool> startNewWebinar(String title) async {
+    if (_AuthProvider == null || _AuthProvider!.userId == null) return false;
+    
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      final success = await _service.createWebinar(
+        title: title,
+        mentorId: _AuthProvider!.userId!,
+        mentorName: _AuthProvider!.userName,
+      );
+      return success;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   @override

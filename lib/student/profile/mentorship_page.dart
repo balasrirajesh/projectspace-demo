@@ -15,7 +15,7 @@ class MentorshipPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
         child: Column(
           children: [
             _buildSectionCard(

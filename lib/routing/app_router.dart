@@ -68,7 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/onboarding')) {
         if (authState.role == UserRole.student) return '/home';
-        if (authState.role == UserRole.alumni) return '/alumni-home';
+        if (authState.role == UserRole.alumni || authState.role == UserRole.mentor) return '/alumni-home';
         if (authState.role == UserRole.admin) return '/admin-home';
       }
       return null;

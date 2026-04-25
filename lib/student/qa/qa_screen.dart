@@ -31,14 +31,7 @@ class _QAScreenState extends ConsumerState<QAScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questions = ref.watch(qaProvider);
-    final filtered = _searchQuery.isEmpty
-        ? questions
-        : questions
-            .where((q) =>
-                q.question.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                q.tags.any((t) => t.toLowerCase().contains(_searchQuery.toLowerCase())))
-            .toList();
+    final questionsAsync = ref.watch(qaProvider);
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -96,8 +89,18 @@ class _QAScreenState extends ConsumerState<QAScreen> {
 
           // Question list
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
+            child: questionsAsync.when(
+              data: (questions) {
+                final filtered = _searchQuery.isEmpty
+                    ? questions
+                    : questions
+                        .where((q) =>
+                            q.question.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                            q.tags.any((t) => t.toLowerCase().contains(_searchQuery.toLowerCase())))
+                        .toList();
+
+                if (filtered.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -109,27 +112,36 @@ class _QAScreenState extends ConsumerState<QAScreen> {
                         ),
                       ],
                     ).animate().fadeIn(),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, i) {
-                      return _QuestionCard(question: filtered[i])
-                          .animate()
-                          .fadeIn(delay: Duration(milliseconds: i * 100))
-                          .slideY(begin: 0.1);
-                    },
-                  ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, i) {
+                    return _QuestionCard(question: filtered[i])
+                        .animate()
+                        .fadeIn(delay: Duration(milliseconds: i * 100))
+                        .slideY(begin: 0.1);
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(child: Text('Error: $err')),
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAskModal(context),
-        label: const Text('Ask Question'),
-        icon: const Icon(Icons.add_rounded),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ).animate().scale(delay: 500.ms),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: FloatingActionButton.extended(
+          onPressed: () => _showAskModal(context),
+          label: const Text('Ask Question'),
+          icon: const Icon(Icons.add_rounded),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ).animate().scale(delay: 500.ms),
+      ),
     );
   }
 
@@ -189,27 +201,32 @@ class _QAScreenState extends ConsumerState<QAScreen> {
             ),
             const SizedBox(height: 28),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (_questionController.text.trim().isEmpty) return;
-                final student = ref.read(authProvider).student!;
-                final newQ = QAModel(
-                  id: 'q_${DateTime.now().millisecondsSinceEpoch}',
-                  question: _questionController.text.trim(),
-                  askedBy: student.name,
-                  askedById: student.rollNumber,
-                  timestamp: DateTime.now(),
-                  upvotes: 0,
-                  tags: _selectedTags.isEmpty ? ['General'] : List.from(_selectedTags),
-                  answers: [],
-                  isAnswered: false,
+                
+                final auth = ref.read(authProvider);
+                final userId = auth.student?.rollNumber ?? 'unknown';
+                final userName = auth.loginName;
+                
+                final success = await ref.read(apiServiceProvider).postQuestion(
+                  _questionController.text.trim(),
+                  userId,
+                  userName,
                 );
-                ref.read(qaProvider.notifier).addQuestion(newQ);
-                _questionController.clear();
-                _selectedTags.clear();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Question posted! Alumni will notify you once answered.')),
-                );
+
+                if (success) {
+                  ref.refresh(qaProvider);
+                  _questionController.clear();
+                  _selectedTags.clear();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Question posted! Alumni will notify you once answered.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to post question. Please try again.')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 56),

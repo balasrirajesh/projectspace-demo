@@ -59,13 +59,16 @@ class _SessionsPageState extends State<SessionsPage> {
     final auth = context.read<AuthProvider>();
     final isStudent = auth.role == UserRole.student;
 
-    return FloatingActionButton.extended(
-      onPressed: () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context),
-      backgroundColor: AppColors.primary,
-      icon: Icon(isStudent ? Icons.login_rounded : Icons.add_rounded, color: Colors.white),
-      label: Text(
-        isStudent ? "Join Live Class" : "Create Live Class", 
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 80),
+      child: FloatingActionButton.extended(
+        onPressed: () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context),
+        backgroundColor: AppColors.primary,
+        icon: Icon(isStudent ? Icons.login_rounded : Icons.add_rounded, color: Colors.white),
+        label: Text(
+          isStudent ? "Join Live Class" : "Create Live Class", 
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+        ),
       ),
     );
   }

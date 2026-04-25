@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:graduway/theme/app_colors.dart';
 import 'package:graduway/providers/app_providers.dart';
-import 'package:graduway/data/mock/placement_data.dart';
 
 class BadgesScreen extends ConsumerWidget {
   const BadgesScreen({super.key});
@@ -127,78 +126,91 @@ class BadgesScreen extends ConsumerWidget {
                         alignment: Alignment.centerLeft,
                         child: const Text('Your Badges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       ).animate().fadeIn(delay: 350.ms),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          earnedIds.isEmpty
-                              ? 'No badges yet — start engaging to unlock!'
-                              : '${earnedIds.length}/${mockBadges.length} earned',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                        ),
-                      ).animate().fadeIn(delay: 400.ms),
                       const SizedBox(height: 16),
 
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.1,
-                        ),
-                        itemCount: mockBadges.length,
-                        itemBuilder: (context, i) {
-                          final badge = mockBadges[i];
-                          final isEarned = earnedIds.contains(badge.id);
-                          return Container(
-                            decoration: BoxDecoration(
-                              gradient: isEarned ? AppColors.primaryGradient : null,
-                              color: isEarned ? null : AppColors.bgCard,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: isEarned ? Colors.transparent : AppColors.border),
-                              boxShadow: isEarned
-                                  ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12)]
-                                  : [],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    badge.icon,
-                                    style: TextStyle(fontSize: 26, color: isEarned ? null : null),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    badge.title,
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isEarned ? Colors.white : AppColors.textMuted),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    badge.description,
-                                    style: TextStyle(fontSize: 9, color: isEarned ? Colors.white70 : AppColors.textMuted),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (!isEarned) ...[
-                                    const SizedBox(height: 3),
-                                    const Icon(Icons.lock_rounded, size: 11, color: AppColors.textMuted),
-                                  ],
-                                ],
+                      ref.watch(badgesProvider).when(
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text('Error: $e')),
+                        data: (badges) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                earnedIds.isEmpty
+                                    ? 'No badges yet — start engaging to unlock!'
+                                    : '${earnedIds.length}/${badges.length} earned',
+                                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                              ).animate().fadeIn(delay: 400.ms),
+                              const SizedBox(height: 16),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 1.1,
+                                ),
+                                itemCount: badges.length,
+                                itemBuilder: (context, i) {
+                                  final badge = badges[i];
+                                  final id = badge['id'] ?? '';
+                                  final icon = badge['icon'] ?? '🏅';
+                                  final title = badge['title'] ?? 'Badge';
+                                  final description = badge['description'] ?? '';
+                                  final isEarned = earnedIds.contains(id);
+                                  
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      gradient: isEarned ? AppColors.primaryGradient : null,
+                                      color: isEarned ? null : AppColors.bgCard,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: isEarned ? Colors.transparent : AppColors.border),
+                                      boxShadow: isEarned
+                                          ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12)]
+                                          : [],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            icon,
+                                            style: const TextStyle(fontSize: 26),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            title,
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isEarned ? Colors.white : AppColors.textMuted),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            description,
+                                            style: TextStyle(fontSize: 9, color: isEarned ? Colors.white70 : AppColors.textMuted),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (!isEarned) ...[
+                                            const SizedBox(height: 3),
+                                            const Icon(Icons.lock_rounded, size: 11, color: AppColors.textMuted),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                      .animate(delay: Duration(milliseconds: 450 + i * 60))
+                                      .fadeIn(duration: 350.ms)
+                                      .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), delay: Duration(milliseconds: 450 + i * 60), curve: Curves.elasticOut);
+                                },
                               ),
-                            ),
-                          )
-                              .animate(delay: Duration(milliseconds: 450 + i * 60))
-                              .fadeIn(duration: 350.ms)
-                              .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), delay: Duration(milliseconds: 450 + i * 60), curve: Curves.elasticOut);
+                            ],
+                          );
                         },
                       ),
 

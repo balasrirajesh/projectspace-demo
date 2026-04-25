@@ -241,9 +241,28 @@ class AlumniHomeScreen extends ConsumerWidget {
                   _MentorActionBtn(title: 'Requests', icon: Icons.pending_actions, color: Colors.teal, hasNotif: true,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniRequestsPage()))),
                   const SizedBox(width: 12),
-                  _MentorActionBtn(title: 'Start Stream', icon: Icons.sensors, color: Colors.redAccent,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => BroadcastStreamingPage(streamId: 'alumni-stream-${DateTime.now().millisecondsSinceEpoch}')))),
+                  _MentorActionBtn(
+                    title: 'Start Stream',
+                    icon: Icons.sensors,
+                    color: Colors.redAccent,
+                    onTap: () async {
+                      final title = await _showStreamTitleDialog(context);
+                      if (title != null && title.isNotEmpty) {
+                        final mentorship = legacy_provider.Provider.of<MentorshipProvider>(context, listen: false);
+                        final success = await mentorship.startNewWebinar(title);
+                        if (success && context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BroadcastStreamingPage(
+                                streamId: title.toLowerCase().replaceAll(' ', '-'),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
                   const SizedBox(width: 12),
                   _MentorActionBtn(title: 'My Mentees', icon: Icons.group, color: Colors.indigo,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MenteesPage()))),
@@ -331,6 +350,7 @@ class AlumniHomeScreen extends ConsumerWidget {
                     style:
                         TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
+              const SizedBox(height: 110),
             ],
           ),
         ),
@@ -461,10 +481,36 @@ class AlumniHomeScreen extends ConsumerWidget {
                       style:
                           TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
+                const SizedBox(height: 110),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<String?> _showStreamTitleDialog(BuildContext context) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Start Live Stream'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'Enter session title (e.g. Placement Prep)',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: const Text('Go Live'),
+          ),
+        ],
       ),
     );
   }

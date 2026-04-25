@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:graduway/theme/app_colors.dart';
-import 'package:graduway/data/mock/alumni_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:graduway/providers/app_providers.dart';
 
-class AlumniProfileScreen extends StatelessWidget {
+class AlumniProfileScreen extends ConsumerWidget {
   final String alumniId;
   const AlumniProfileScreen({super.key, required this.alumniId});
 
   @override
-  Widget build(BuildContext context) {
-    final alumni = mockAlumni.firstWhere((a) => a.id == alumniId, orElse: () => mockAlumni.first);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alumniAsync = ref.watch(alumniListProvider);
 
-    return Scaffold(
-      body: Container(
+    return alumniAsync.when(
+      data: (list) {
+        final alumni = list.firstWhere((a) => a.id == alumniId, orElse: () => list.first);
+        return Scaffold(
+          body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
         child: CustomScrollView(
           slivers: [
@@ -100,6 +104,7 @@ class AlumniProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
+          
 
             SliverToBoxAdapter(
               child: Padding(
@@ -282,13 +287,17 @@ class AlumniProfileScreen extends StatelessWidget {
                         ),
                       ),
                     ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.3, end: 0, delay: 600.ms),
-                  ],
-                ),
+            ],
+          ),
               ),
             ),
           ],
         ),
-      ),
+        )
+        );
+      },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, _) => Scaffold(body: Center(child: Text('Error loading profile: $err'))),
     );
   }
 }
