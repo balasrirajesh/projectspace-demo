@@ -400,7 +400,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                               ? InteractiveClassroomPage(
                                   roomId: roomId.toLowerCase().replaceAll(' ', '-'),
                                 )
-                              : BroadcastStreamingPage(
+                              : student_broadcast.BroadcastStreamingPage(
                                   streamId: roomId.toLowerCase().replaceAll(' ', '-'),
                                 ),
                         ),
