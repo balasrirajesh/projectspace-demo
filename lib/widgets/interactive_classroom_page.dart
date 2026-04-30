@@ -1278,34 +1278,24 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
                   const SizedBox(width: 4),
 
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      if (mounted) Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.redAccent.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.call_end, color: Colors.white, size: 18),
-                          SizedBox(width: 8),
-                          Text("LEAVE",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12)),
-                        ],
-                      ),
+                      elevation: 4,
+                      shadowColor: Colors.redAccent.withOpacity(0.5),
+                    ),
+                    icon: const Icon(Icons.call_end, size: 18),
+                    label: const Text(
+                      "LEAVE",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 ],

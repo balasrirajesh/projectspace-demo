@@ -105,7 +105,6 @@ class MentorshipProvider with ChangeNotifier {
       useMedia: false, 
     ).catchError((e) {
       dev.log('⚠️ [MENTORSHIP] Could not connect to signaling server: $e');
-      _seedMockWebinars();
       return null;
     });
 
@@ -198,74 +197,42 @@ class MentorshipProvider with ChangeNotifier {
   }
 
   /// Starts a new webinar session.
-  Future<bool> startNewWebinar(String title) async {
+  Future<bool> startNewWebinar(String title, {String? streamId}) async {
     if (_AuthProvider == null || _AuthProvider!.userId == null) return false;
     
     _isLoading = true;
     notifyListeners();
 
     try {
+      final actualId = streamId ?? title.toLowerCase().replaceAll(' ', '-');
       final success = await _service.createWebinar(
+        id: actualId,
         title: title,
         mentorId: _AuthProvider!.userId!,
         mentorName: _AuthProvider!.userName,
       );
       
       if (!success) {
-        dev.log('⚠️ [MENTORSHIP] Backend create failed, adding local mock webinar for demo.');
-        _addMockWebinar(title);
+        dev.log('⚠️ [MENTORSHIP] Backend create failed.');
       }
-      return true; // Return true so UI proceeds to navigate
+      return success; // Proceed based on actual success
     } catch (e) {
-      dev.log('⚠️ [MENTORSHIP] Error creating webinar: $e. Adding local mock.');
-      _addMockWebinar(title);
-      return true;
+      dev.log('⚠️ [MENTORSHIP] Error creating webinar: $e.');
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Ends a webinar session and removes it from the local list.
-  void endWebinar(String title) {
-    _webinars.removeWhere((w) => w['title'] == title || w['id'] == title.toLowerCase().replaceAll(' ', '-'));
+  /// Ends a webinar session and removes it from the local list and backend.
+  Future<void> endWebinar(String streamId) async {
+    _webinars.removeWhere((w) => w['id'] == streamId || w['title'] == streamId);
     notifyListeners();
+    await _service.deleteWebinar(streamId);
   }
 
-  void _addMockWebinar(String title) {
-    _webinars.insert(0, {
-      'id': title.toLowerCase().replaceAll(' ', '-'),
-      'title': title,
-      'mentorName': _AuthProvider?.userName ?? 'Demo Mentor',
-      'startTime': 'Just now',
-      'isLive': true,
-      'attendees': 1,
-    });
-    notifyListeners();
-  }
 
-  void _seedMockWebinars() {
-    if (_webinars.isNotEmpty) return;
-    _webinars = [
-      {
-        'id': 'flutter-deep-dive',
-        'title': 'Flutter Deep Dive',
-        'mentorName': 'Srinivas',
-        'startTime': 'LIVE',
-        'isLive': true,
-        'attendees': 12,
-      },
-      {
-        'id': 'ai-ml-basics',
-        'title': 'AI & ML Basics',
-        'mentorName': 'Rajesh',
-        'startTime': 'Today, 6:00 PM',
-        'isLive': false,
-        'attendees': 45,
-      },
-    ];
-    notifyListeners();
-  }
 
   void _seedMockRequests() {
     // Already handled by MentorshipService mock or local storage

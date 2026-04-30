@@ -8,6 +8,7 @@ import 'package:graduway/theme/app_colors.dart';
 import 'package:graduway/widgets/interactive_classroom_page.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:graduway/alumni/mentorship/broadcast_streaming_page.dart' as alumni_broadcast;
 
 class SessionsPage extends StatefulWidget {
   const SessionsPage({super.key});
@@ -136,7 +137,8 @@ class _SessionsPageState extends State<SessionsPage> {
               final title = controller.text.trim();
               if (title.isNotEmpty) {
                 final provider = context.read<MentorshipProvider>();
-                provider.startNewWebinar(title);
+                final streamId = 'int-${title.toLowerCase().replaceAll(' ', '-')}';
+                provider.startNewWebinar(title, streamId: streamId);
                 Navigator.pop(context);
                 
                 // Navigate to the newly created room
@@ -144,7 +146,7 @@ class _SessionsPageState extends State<SessionsPage> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => InteractiveClassroomPage(
-                      roomId: title.toLowerCase().replaceAll(' ', '-'),
+                      roomId: streamId,
                     ),
                   ),
                 );
@@ -201,8 +203,9 @@ class _SessionsPageState extends State<SessionsPage> {
                     itemBuilder: (context, index) {
                       final webinar = webinars[index];
                       return _buildSessionCard(
+                        webinarId: webinar['id'],
                         title: webinar['title'],
-                        subtitle: "Live Stream Class",
+                        subtitle: webinar['id'].toString().startsWith('brd-') ? "Live Stream Class" : "Interactive Class",
                         time: webinar['startTime'],
                         duration: "${webinar['attendees']} attending",
                         isLive: webinar['isLive'],
@@ -304,6 +307,7 @@ class _SessionsPageState extends State<SessionsPage> {
     required String duration,
     required bool isLive,
     required int index,
+    String? webinarId,
     IconData icon = Icons.video_camera_front_rounded,
   }) {
     return Padding(
@@ -378,12 +382,13 @@ class _SessionsPageState extends State<SessionsPage> {
                     return ElevatedButton(
                       onPressed: () {
                         if (isLive) {
+                          final wId = webinarId ?? title.toLowerCase().replaceAll(' ', '-');
                           Navigator.push(
                             context ,
                             MaterialPageRoute(
-                              builder: (context) => InteractiveClassroomPage(
-                                roomId: title.toLowerCase().replaceAll(' ', '-'),
-                              ),
+                              builder: (context) => wId.startsWith('brd-')
+                                ? alumni_broadcast.BroadcastStreamingPage(streamId: wId)
+                                : InteractiveClassroomPage(roomId: wId),
                             ),
                           );
                         } else {

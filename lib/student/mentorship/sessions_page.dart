@@ -184,7 +184,9 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
               final title = controller.text.trim();
               if (title.isNotEmpty) {
                 final provider = context.read<MentorshipProvider>();
-                final success = await provider.startNewWebinar(title);
+                final idPrefix = isInteractive ? 'int-' : 'brd-';
+                final streamId = '$idPrefix${title.toLowerCase().replaceAll(' ', '-')}';
+                final success = await provider.startNewWebinar(title, streamId: streamId);
                 if (!mounted) return;
                 
                 if (success) {
@@ -192,8 +194,8 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                   Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
                       builder: (context) => isInteractive
-                        ? InteractiveClassroomPage(roomId: title.toLowerCase().replaceAll(' ', '-'))
-                        : alumni_broadcast.BroadcastStreamingPage(streamId: title.toLowerCase().replaceAll(' ', '-')),
+                        ? InteractiveClassroomPage(roomId: streamId)
+                        : alumni_broadcast.BroadcastStreamingPage(streamId: streamId),
                     ),
                   );
                 } else {
@@ -248,7 +250,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
   Widget _buildInteractiveTab(BuildContext context) {
     return Consumer<MentorshipProvider>(
       builder: (context, provider, child) {
-        final webinars = provider.webinars;
+        final webinars = provider.webinars.where((w) => !w['id'].toString().startsWith('brd-')).toList();
         final auth = context.read<AuthProvider>();
         final isStudent = auth.role == UserRole.student;
 
@@ -274,7 +276,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                         onJoin: () => Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                             builder: (context) => InteractiveClassroomPage(
-                              roomId: webinar['title'].toLowerCase().replaceAll(' ', '-'),
+                              roomId: webinar['id'],
                             ),
                           ),
                         ),
@@ -292,7 +294,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
     return Consumer<MentorshipProvider>(
       builder: (context, provider, child) {
         // For demo, we show same webinars but with different interaction logic
-        final webinars = provider.webinars;
+        final webinars = provider.webinars.where((w) => w['id'].toString().startsWith('brd-')).toList();
         final auth = context.read<AuthProvider>();
         final isStudent = auth.role == UserRole.student;
 
@@ -318,7 +320,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                         onJoin: () => Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                             builder: (context) => student_broadcast.BroadcastStreamingPage(
-                              streamId: webinar['title'].toLowerCase().replaceAll(' ', '-'),
+                              streamId: webinar['id'],
                             ),
                           ),
                         ),

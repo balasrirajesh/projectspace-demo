@@ -192,12 +192,14 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Full-screen Video Layer
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. Full-screen Video Layer
           _buildVideoLayer(),
 
           // 2. Gradient Overlays for readability
@@ -221,7 +223,8 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
           if (_errorMessage != null) _buildErrorOverlay(),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildLoadingOverlay() {

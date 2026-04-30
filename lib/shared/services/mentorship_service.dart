@@ -137,6 +137,7 @@ class MentorshipService {
 
   /// Creates a new persistent webinar session in the backend.
   Future<bool> createWebinar({
+    required String id,
     required String title,
     required String mentorId,
     required String mentorName,
@@ -146,7 +147,7 @@ class MentorshipService {
         Uri.parse("${AuthProvider.getBaseUrl("rooms")}"),
         headers: {"Content-Type": "application/json"},
         body: json.encode({
-          "id": title.toLowerCase().replaceAll(' ', '-'),
+          "id": id,
           "title": title,
           "mentorId": mentorId,
           "mentorName": mentorName,
@@ -158,6 +159,19 @@ class MentorshipService {
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       debugPrint("Error creating webinar: $e");
+      return false;
+    }
+  }
+
+  /// Deletes a webinar session from the backend.
+  Future<bool> deleteWebinar(String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse("${AuthProvider.getBaseUrl("rooms")}/$id"),
+      );
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint("Error deleting webinar: $e");
       return false;
     }
   }

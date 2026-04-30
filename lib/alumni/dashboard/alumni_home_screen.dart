@@ -1,5 +1,4 @@
-import 'package:graduway/student/mentorship/sessions_page.dart';
-// ignore_for_file: unused_import
+import 'package:graduway/alumni/mentorship/sessions_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -249,13 +248,14 @@ class AlumniHomeScreen extends ConsumerWidget {
                       final title = await _showStreamTitleDialog(context);
                       if (title != null && title.isNotEmpty) {
                         final mentorship = legacy_provider.Provider.of<MentorshipProvider>(context, listen: false);
-                        final success = await mentorship.startNewWebinar(title);
+                        final streamId = 'brd-${title.toLowerCase().replaceAll(' ', '-')}';
+                        final success = await mentorship.startNewWebinar(title, streamId: streamId);
                         if (success && context.mounted) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => BroadcastStreamingPage(
-                                streamId: title.toLowerCase().replaceAll(' ', '-'),
+                                streamId: streamId,
                               ),
                             ),
                           );

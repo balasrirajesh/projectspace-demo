@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:image_picker/image_picker.dart';
@@ -73,15 +74,16 @@ class ClassroomService {
     // --- Media Setup ---
     if (useMedia && startWithMedia) {
       try {
-        // Request Permissions (Required for Android/iOS)
-        final camStatus = await Permission.camera.request();
-        final micStatus = await Permission.microphone.request();
+        if (!kIsWeb) {
+          final camStatus = await Permission.camera.request();
+          final micStatus = await Permission.microphone.request();
 
-        if (camStatus != PermissionStatus.granted ||
-            micStatus != PermissionStatus.granted) {
-          dev.log('❌ [RTC] Permissions denied: Cam=$camStatus, Mic=$micStatus');
-          onError?.call('Camera/Microphone permissions are required.');
-          return; // Stop if permissions not granted
+          if (camStatus != PermissionStatus.granted ||
+              micStatus != PermissionStatus.granted) {
+            dev.log('❌ [RTC] Permissions denied: Cam=$camStatus, Mic=$micStatus');
+            onError?.call('Camera/Microphone permissions are required.');
+            return; // Stop if permissions not granted
+          }
         }
 
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -257,7 +259,10 @@ class ClassroomService {
 
   Future<void> _createOffer(String targetId, String localName) async {
     final pc = await _createPeerConnection(targetId, localName);
-    RTCSessionDescription offer = await pc.createOffer();
+    RTCSessionDescription offer = await pc.createOffer({
+      'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': 1,
+    });
     await pc.setLocalDescription(offer);
 
     _socket!.emit('offer', {
