@@ -3,7 +3,7 @@ pipeline {
     
     triggers {
         githubPush()
-        pollSCM('* * * * *')
+        pollSCM('H/5 * * * *')  // Poll every 5 min, not every minute
     }
 
     environment {
@@ -65,6 +65,17 @@ pipeline {
             }
         }
 
+        stage('Build Flutter Web') {
+            steps {
+                echo '🌐 Building Flutter Web for OpenShift deployment...'
+                script {
+                    def flutterCmd = "${env.FLUTTER_HOME}\\bin\\flutter.bat"
+                    bat "${flutterCmd} build web --release"
+                }
+                archiveArtifacts artifacts: 'build/web/**', fingerprint: true
+            }
+        }
+
         stage('Docker Build & Push') {
             steps {
                 echo '📦 Building Docker Image for Signaling Server...'
@@ -85,15 +96,18 @@ pipeline {
                 echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
                 script {
                     def ocCmd = env.OC_PATH ?: 'oc'
-                    def TOKEN = "sha256~33eVkpNV6pDVtA-X71h5_ilQpYeDaIutr8S26_s6kak"
-                    bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
-                    bat "${ocCmd} project ${env.OC_PROJECT}"
-                    bat "${ocCmd} apply -f openshift/mongodb.yaml"
-                    bat "${ocCmd} apply -f openshift/deployment.yaml"
-                    bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
-                    bat "${ocCmd} apply -f openshift/service.yaml"
-                    bat "${ocCmd} rollout restart deployment/signaling-server"
-                    bat "${ocCmd} rollout status deployment/signaling-server"
+                    // Token is stored as a Jenkins Secret Text credential (id: 'openshift-token')
+                    // NEVER hardcode tokens in the Jenkinsfile — rotate via Jenkins UI if compromised
+                    withCredentials([string(credentialsId: 'openshift-token', variable: 'TOKEN')]) {
+                        bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
+                        bat "${ocCmd} project ${env.OC_PROJECT}"
+                        bat "${ocCmd} apply -f openshift/mongodb.yaml"
+                        bat "${ocCmd} apply -f openshift/deployment.yaml"
+                        bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
+                        bat "${ocCmd} apply -f openshift/service.yaml"
+                        bat "${ocCmd} rollout restart deployment/signaling-server"
+                        bat "${ocCmd} rollout status deployment/signaling-server"
+                    }
                 }
             }
         }

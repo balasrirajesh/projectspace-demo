@@ -17,11 +17,22 @@ class SessionsPage extends StatefulWidget {
   State<SessionsPage> createState() => _SessionsPageState();
 }
 
-class _SessionsPageState extends State<SessionsPage> {
+class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final TextEditingController _joinController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {}); // Rebuild to update FAB label and icon
+    });
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _joinController.dispose();
     super.dispose();
   }
@@ -34,12 +45,13 @@ class _SessionsPageState extends State<SessionsPage> {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           title: const Text("Sessions & Classes"),
-          bottom: const TabBar(
+          bottom: TabBar(
+            controller: _tabController,
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
             isScrollable: true,
-            tabs: [
+            tabs: const [
               Tab(text: "1-on-1 Mentorship"),
               Tab(text: "Interactive Classes"),
               Tab(text: "Live Broadcasts"),
@@ -48,6 +60,7 @@ class _SessionsPageState extends State<SessionsPage> {
         ),
         body: SafeArea(
           child: TabBarView(
+            controller: _tabController,
             children: [
               _buildMentorshipTab(context),
               _buildInteractiveTab(context),
@@ -64,14 +77,45 @@ class _SessionsPageState extends State<SessionsPage> {
     final auth = context.read<AuthProvider>();
     final isStudent = auth.role == UserRole.student;
 
-    return FloatingActionButton.extended(
-      onPressed: () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context),
-      backgroundColor: AppColors.primary,
-      icon: Icon(isStudent ? Icons.login_rounded : Icons.add_rounded, color: Colors.white),
-      label: Text(
-        isStudent ? "Join Live Class" : "Create Live Class", 
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+    String label = "Create Class";
+    IconData icon = Icons.add_rounded;
+    VoidCallback onPressed = () => _showCreateClassDialog(context, isInteractive: true);
+
+    switch (_tabController.index) {
+      case 0: // Mentorship
+        label = isStudent ? "Request Session" : "Schedule Session";
+        icon = Icons.calendar_today_rounded;
+        onPressed = () => _showScheduleMentorshipDialog(context);
+        break;
+      case 1: // Interactive
+        label = isStudent ? "Join Class" : "Create Interactive";
+        icon = isStudent ? Icons.login_rounded : Icons.groups_rounded;
+        onPressed = () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context, isInteractive: true);
+        break;
+      case 2: // Broadcast
+        label = isStudent ? "Join Stream" : "Go Live Now";
+        icon = isStudent ? Icons.live_tv_rounded : Icons.sensors_rounded;
+        onPressed = () => isStudent ? _showJoinClassDialog(context) : _showCreateClassDialog(context, isInteractive: false);
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 80),
+      child: FloatingActionButton.extended(
+        onPressed: onPressed,
+        backgroundColor: AppColors.primary,
+        icon: Icon(icon, color: Colors.white),
+        label: Text(
+          label, 
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+        ),
       ),
+    );
+  }
+
+  void _showScheduleMentorshipDialog(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Scheduling feature coming soon!")),
     );
   }
 
@@ -80,11 +124,11 @@ class _SessionsPageState extends State<SessionsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Join Live Class"),
+        title: const Text("Join Live Session"),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            hintText: "Enter Room Name (e.g. flutter-basics)",
+            hintText: "Enter Room/Stream ID (e.g. brd-physics)",
             border: OutlineInputBorder(),
           ),
           autofocus: true,
@@ -96,15 +140,17 @@ class _SessionsPageState extends State<SessionsPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final roomId = controller.text.trim();
-              if (roomId.isNotEmpty) {
+              final id = controller.text.trim();
+              if (id.isNotEmpty) {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final wId = id.toLowerCase().replaceAll(' ', '-');
+                // rootNavigator: true breaks out of the AlumniShell
+                // so the bottom navbar does not show over full-screen sessions
+                Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
-                    builder: (context) => InteractiveClassroomPage(
-                      roomId: roomId.toLowerCase().replaceAll(' ', '-'),
-                    ),
+                    builder: (context) => wId.startsWith('brd-')
+                      ? alumni_broadcast.BroadcastStreamingPage(streamId: wId)
+                      : InteractiveClassroomPage(roomId: wId),
                   ),
                 );
               }
@@ -116,17 +162,17 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
-  void _showCreateClassDialog(BuildContext context) {
+  void _showCreateClassDialog(BuildContext context, {required bool isInteractive}) {
     final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Create Live Class"),
+        title: Text(isInteractive ? "Create Interactive Class" : "Start Live Broadcast"),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: "Enter Class Title (e.g. Flutter Basics)",
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: isInteractive ? "Enter Class Title" : "Enter Stream Title",
+            border: const OutlineInputBorder(),
           ),
           autofocus: true,
         ),
@@ -136,26 +182,35 @@ class _SessionsPageState extends State<SessionsPage> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final title = controller.text.trim();
               if (title.isNotEmpty) {
                 final provider = context.read<MentorshipProvider>();
-                final streamId = 'int-${title.toLowerCase().replaceAll(' ', '-')}';
-                provider.startNewWebinar(title, streamId: streamId);
-                Navigator.pop(context);
+                final prefix = isInteractive ? 'int-' : 'brd-';
+                final streamId = '$prefix${title.toLowerCase().replaceAll(' ', '-')}';
                 
-                // Navigate to the newly created room
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => InteractiveClassroomPage(
-                      roomId: streamId,
+                final success = await provider.startNewWebinar(title, streamId: streamId);
+                if (!mounted) return;
+                
+                if (success) {
+                  Navigator.pop(context);
+                  // rootNavigator: true breaks out of the AlumniShell
+                  // so the bottom navbar does not show over full-screen sessions
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                      builder: (context) => isInteractive
+                        ? InteractiveClassroomPage(roomId: streamId)
+                        : alumni_broadcast.BroadcastStreamingPage(streamId: streamId),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Failed to create session. Is the server running?")),
+                  );
+                }
               }
             },
-            child: const Text("Start Class"),
+            child: Text(isInteractive ? "Start Class" : "Go Live"),
           ),
         ],
       ),
@@ -396,8 +451,9 @@ class _SessionsPageState extends State<SessionsPage> {
                       onPressed: () {
                         if (isLive) {
                           final wId = webinarId ?? title.toLowerCase().replaceAll(' ', '-');
-                          Navigator.push(
-                            context ,
+                          // rootNavigator: true breaks out of the AlumniShell
+                          // so the bottom navbar does not show over full-screen sessions
+                          Navigator.of(context, rootNavigator: true).push(
                             MaterialPageRoute(
                               builder: (context) => wId.startsWith('brd-')
                                 ? alumni_broadcast.BroadcastStreamingPage(streamId: wId)

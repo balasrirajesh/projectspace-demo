@@ -45,13 +45,13 @@ const _publicRoutes = ['/splash', '/onboarding', '/login'];
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final hasSeenOnboarding = ref.watch(hasSeenOnboardingProvider);
 
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: false,
     redirect: (context, state) {
       final isLoggedIn = authState.isLoggedIn;
-      final hasSeenOnboarding = ref.read(hasSeenOnboardingProvider);
       final isPublic =
           _publicRoutes.any((r) => state.matchedLocation.startsWith(r));
 

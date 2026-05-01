@@ -24,8 +24,18 @@ spec:
         env:
         - name: PORT
           value: "3000"
+        - name: MONGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: username
+        - name: MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: password
         - name: MONGODB_URI
-          value: "mongodb://admin:password@mongodb:27017/alumni_app?authSource=admin"
+          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb:27017/alumni_app?authSource=admin"
         - name: START_MEDIA_SERVER
           value: "false"
         readinessProbe:

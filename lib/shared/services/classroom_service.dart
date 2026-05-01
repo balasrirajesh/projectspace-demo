@@ -425,13 +425,20 @@ class ClassroomService {
   }
 
   void stopLocalStream() {
-    localStream?.getTracks().forEach((track) => track.stop());
-    localStream?.dispose();
-    localStream = null;
-    dev.log('🔇 [RTC] Local stream stopped');
+    if (localStream != null) {
+      dev.log('🔇 [RTC] Explicitly stopping ${localStream!.getTracks().length} tracks');
+      for (var track in localStream!.getTracks()) {
+        track.enabled = false;
+        track.stop();
+      }
+      localStream!.dispose();
+      localStream = null;
+      dev.log('✅ [RTC] Local stream fully disposed');
+    }
   }
 
   Future<void> leaveRoom() async {
+    dev.log('🚪 [RTC] Leaving room $_roomId');
     if (_socket != null && _socket!.connected) {
       _socket!.emit('leave-room', {'roomId': _roomId});
       _socket!.disconnect();
@@ -440,15 +447,21 @@ class ClassroomService {
   }
 
   void dispose() {
-    localStream?.getTracks().forEach((track) => track.stop());
-    localStream?.dispose();
-    localStream = null;
+    dev.log('🧹 [RTC] Disposing ClassroomService instance');
+    stopLocalStream();
     
-    peerConnections.forEach((_, pc) => pc.close());
+    peerConnections.forEach((id, pc) {
+      dev.log('🔌 [RTC] Closing peer connection: $id');
+      pc.close();
+    });
     peerConnections.clear();
     remoteStreams.clear();
     participants.clear();
-    _socket?.dispose();
-    _socket = null;
+    
+    if (_socket != null) {
+      _socket!.dispose();
+      _socket = null;
+    }
+    dev.log('✨ [RTC] ClassroomService disposal complete');
   }
 }

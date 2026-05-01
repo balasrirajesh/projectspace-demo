@@ -31,17 +31,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // SYNC: Update Riverpod authProvider so the router knows we are logged in
       final riverpodAuth = ref.read(authProvider.notifier);
       final email = _emailController.text;
-      
-      if (auth.role == shared_role.UserRole.admin) {
+      final role = auth.role;
+
+      // Update Riverpod state first
+      if (role == shared_role.UserRole.admin) {
         riverpodAuth.loginAsAdmin(email: email);
-        if (mounted) context.go('/admin-home');
-      } else if (auth.role == shared_role.UserRole.mentor || auth.role == shared_role.UserRole.alumni) {
+      } else if (role == shared_role.UserRole.mentor || role == shared_role.UserRole.alumni) {
         riverpodAuth.loginAsAlumni(email: email);
-        if (mounted) context.go('/alumni-home');
       } else {
         riverpodAuth.loginAsStudent(email: email);
-        if (mounted) context.go('/home');
       }
+
+      // Defer navigation to NEXT microtask so Riverpod can finish rebuilding
+      // the authProvider before GoRouter's redirect function reads it.
+      // Without this, the router assertion "Cannot use ref functions after
+      // dependency changed but before provider rebuilt" is triggered.
+      Future.microtask(() {
+        if (!mounted) return;
+        if (role == shared_role.UserRole.admin) {
+          context.go('/admin-home');
+        } else if (role == shared_role.UserRole.mentor || role == shared_role.UserRole.alumni) {
+          context.go('/alumni-home');
+        } else {
+          context.go('/home');
+        }
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

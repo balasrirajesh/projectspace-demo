@@ -10,6 +10,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:ui';
+import 'package:graduway/alumni/shared/providers/mentorship_provider.dart';
+
 
 class InteractiveClassroomPage extends StatefulWidget {
   final String roomId;
@@ -307,6 +309,16 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   @override
   void dispose() {
+    // CRITICAL: Stop media tracks SYNCHRONOUSLY here.
+    // Flutter's dispose() is not async - if we only call _cleanup() (which is
+    // async/fire-and-forget), the tracks may stay active after the widget dies.
+    _localRenderer.srcObject = null;
+    for (var renderer in _remoteRenderers.values) {
+      renderer.srcObject = null;
+    }
+    _classroomService.stopLocalStream();
+
+    // Schedule the async teardown (socket disconnect, renderer dispose)
     _cleanup();
     _chatController.dispose();
     _scrollController.dispose();
@@ -317,10 +329,26 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
     }
+    // Step 1: Null out srcObject on ALL renderers FIRST.
+    // The RTCVideoRenderer holds an active reference to the MediaStream via
+    // srcObject. If we dispose the renderer while srcObject is still set,
+    // the browser does not release the camera/mic hardware.
+    _localRenderer.srcObject = null;
+    for (var renderer in _remoteRenderers.values) {
+      renderer.srcObject = null;
+    }
+
+    // Step 2: Physically stop all media tracks so the camera light turns off.
+    _classroomService.stopLocalStream();
+
+    // Step 3: Now it is safe to dispose the renderers.
     await _localRenderer.dispose();
     for (var renderer in _remoteRenderers.values) {
       await renderer.dispose();
     }
+    _remoteRenderers.clear();
+
+    // Step 4: Leave the signaling room and clean up peer connections.
     await _classroomService.leaveRoom();
   }
 
@@ -486,8 +514,9 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
           );
         }),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildWaitingRoomOverlay() {
     return Positioned.fill(

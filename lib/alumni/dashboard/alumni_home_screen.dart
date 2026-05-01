@@ -251,8 +251,7 @@ class AlumniHomeScreen extends ConsumerWidget {
                         final streamId = 'brd-${title.toLowerCase().replaceAll(' ', '-')}';
                         final success = await mentorship.startNewWebinar(title, streamId: streamId);
                         if (success && context.mounted) {
-                          Navigator.push(
-                            context,
+                          Navigator.of(context, rootNavigator: true).push(
                             MaterialPageRoute(
                               builder: (_) => BroadcastStreamingPage(
                                 streamId: streamId,

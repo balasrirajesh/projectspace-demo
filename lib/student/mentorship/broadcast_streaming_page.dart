@@ -152,7 +152,11 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
 
   @override
   void dispose() {
+    // CRITICAL: Stop tracks synchronously so camera/mic releases immediately.
+    _remoteRenderer.srcObject = null;
+    _classroomService.stopLocalStream();
     _timer?.cancel();
+    // Async teardown
     _cleanup();
     _commentController.dispose();
     super.dispose();
@@ -162,6 +166,11 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
     }
+    // Null out srcObject BEFORE disposing the renderer.
+    // This releases the browser's active hold on any media streams,
+    // ensuring the camera indicator turns off when the student leaves.
+    _remoteRenderer.srcObject = null;
+
     _classroomService.dispose();
     await _remoteRenderer.dispose();
   }

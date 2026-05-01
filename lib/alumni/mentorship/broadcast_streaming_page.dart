@@ -137,7 +137,11 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
 
   @override
   void dispose() {
+    // CRITICAL: Stop tracks synchronously so camera turns off immediately.
+    _localRenderer.srcObject = null;
+    _classroomService.stopLocalStream();
     _timer?.cancel();
+    // Async teardown
     _cleanup();
     _commentController.dispose();
     super.dispose();
@@ -148,8 +152,18 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
       ScaffoldMessenger.of(context).clearSnackBars();
     }
     _timer?.cancel();
-    _classroomService.dispose();
+
+    // Null out srcObject BEFORE disposing the renderer.
+    // This releases the browser's active lock on the camera/microphone hardware,
+    // turning off the camera indicator light immediately.
+    _localRenderer.srcObject = null;
+
+    // Physically stop all tracks so the browser releases the device.
+    _classroomService.stopLocalStream();
+
+    // Now safe to dispose the renderer and leave the signaling room.
     await _localRenderer.dispose();
+    _classroomService.dispose();
   }
 
   void _addHeart() {
