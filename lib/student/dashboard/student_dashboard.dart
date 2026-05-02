@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:graduway/widgets/interactive_classroom_page.dart';
+import 'package:graduway/student/mentorship/broadcast_streaming_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:graduway/alumni/shared/providers/auth_provider.dart';
@@ -54,8 +55,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void _joinSession() {
     final roomId = _roomIdController.text.trim().toLowerCase().replaceAll(' ', '-');
     if (roomId.isNotEmpty) {
-      Navigator.push(
-        context,
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (context) => InteractiveClassroomPage(roomId: roomId),
         ),
@@ -159,8 +159,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   .replaceAll(' ', '-');
               if (roomId.isNotEmpty) {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
+                Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
                     builder: (context) =>
                         InteractiveClassroomPage(roomId: roomId),
@@ -405,12 +404,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ElevatedButton(
             onPressed: isLive
                 ? () {
-                    Navigator.push(
-                      context,
+                    final roomId = room['id'] ?? title.toLowerCase().replaceAll(' ', '-');
+                    final isBroadcast = roomId.toString().startsWith('brd-');
+                    
+                    Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
-                        builder: (context) => InteractiveClassroomPage(
-                          roomId: title.toLowerCase().replaceAll(' ', '-'),
-                        ),
+                        builder: (context) => isBroadcast 
+                          ? BroadcastStreamingPage(streamId: roomId)
+                          : InteractiveClassroomPage(roomId: roomId),
                       ),
                     );
                   }

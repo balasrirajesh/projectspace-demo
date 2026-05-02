@@ -385,8 +385,7 @@ class _DashboardState extends State<Dashboard> {
                     }
                   : a['title'] == "Start Stream"
                       ? () {
-                          Navigator.push(
-                              context,
+                          Navigator.of(context, rootNavigator: true).push(
                               MaterialPageRoute(
                                   builder: (context) => BroadcastStreamingPage(
                                       streamId:

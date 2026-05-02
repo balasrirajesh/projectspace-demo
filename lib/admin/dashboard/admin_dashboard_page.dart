@@ -82,8 +82,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 provider.startNewWebinar(title);
                 Navigator.pop(context);
 
-                Navigator.push(
-                  context,
+                Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
                     builder: (context) => InteractiveClassroomPage(
                       roomId: title.toLowerCase().replaceAll(' ', '-'),
@@ -581,8 +580,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           ElevatedButton.icon(
             onPressed: () {
-              Navigator.push(
-                context,
+              Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(
                   builder: (context) => InteractiveClassroomPage(
                     roomId: title.toLowerCase().replaceAll(' ', '-'),

@@ -149,15 +149,16 @@ class AuthProvider with ChangeNotifier {
   static String getBaseUrl(String endpoint) {
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
 
-    // Priority 1: Smart Debug Fallback for Local Development
-    if (kDebugMode && kIsWeb) {
-      return '$_localSignalingUrl/api$cleanEndpoint';
-    }
-
-    // Priority 2: Production URL (from .env)
+    // Priority 1: Production URL (from .env) if provided
+    // This allows testing remote backends even in debug mode
     if (_productionSignalingUrl.isNotEmpty) {
       String base = _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
       return "$base/api$cleanEndpoint";
+    }
+
+    // Priority 2: Smart Debug Fallback for Local Development
+    if (kDebugMode && kIsWeb) {
+      return '$_localSignalingUrl/api$cleanEndpoint';
     }
 
     // Priority 3: Fallback: Resolved IP or Localhost
@@ -166,15 +167,16 @@ class AuthProvider with ChangeNotifier {
   }
 
   static String getSignalingUrl() {
-    // Priority 1: Smart Debug Fallback for Local Development
+    // Priority 1: Production URL (from .env) if provided
+    // This allows testing remote signaling even in debug mode
+    if (_productionSignalingUrl.isNotEmpty) {
+      return _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
+    }
+
+    // Priority 2: Smart Debug Fallback for Local Development
     // If we're on web (localhost) and in debug mode, prefer local server directly
     if (kDebugMode && kIsWeb) {
       return _localSignalingUrl;
-    }
-
-    // Priority 2: Production URL (from .env) if provided
-    if (_productionSignalingUrl.isNotEmpty) {
-      return _productionSignalingUrl.replaceAll(RegExp(r'/$'), '');
     }
 
     // Priority 3: Fallback: Resolved IP or Localhost

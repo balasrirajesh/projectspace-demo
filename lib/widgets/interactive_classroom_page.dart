@@ -43,6 +43,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   bool _isLocalHandRaised = false;
   final Set<String> _raisedHands = {};
   String _connectionState = "Connecting to classroom handshake...";
+  String? _fatalError;
 
   // Permission State
   bool _canAccessMic = false;
@@ -246,12 +247,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       if (mounted) {
         setState(() {
           _connectionState = "Connection Failed";
+          _fatalError = message;
         });
+        
+        // We no longer automatically pop. We show the error overlay instead.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('⚠️ $message'),
             backgroundColor: Colors.orange.shade800,
-            duration: const Duration(seconds: 8),
+            duration: const Duration(seconds: 10),
             action: SnackBarAction(
               label: 'LEAVE',
               textColor: Colors.white,
@@ -261,11 +265,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             ),
           ),
         );
-        if (message.contains('multiple attempts') || message.contains('timed out') || message.contains('Could not connect')) {
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && _connectionState == "Connection Failed") Navigator.pop(context);
-          });
-        }
       }
     };
 
@@ -501,9 +500,10 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 ],
               ),
 
-              // 2. OVERLAYS (Waiting room)
-              // HIDE if we have a host OR if we already have remote streams (as that implies the host/session is active)
-              if (auth.role == UserRole.student &&
+              // 2. OVERLAYS (Waiting room / Error)
+              if (_fatalError != null)
+                _buildErrorOverlay()
+              else if (auth.role == UserRole.student &&
                   !_hasHost &&
                   _remoteRenderers.isEmpty)
                 _buildWaitingRoomOverlay(),
@@ -517,6 +517,88 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     ),
   );
 }
+
+  Widget _buildErrorOverlay() {
+    return Positioned.fill(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          color: Colors.black.withOpacity(0.85),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cloud_off_rounded,
+                        color: Colors.redAccent, size: 80),
+                  ).animate().scale(duration: 400.ms, curve: Curves.backOut),
+                  const SizedBox(height: 32),
+                  const Text(
+                    "Connection Failed",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _fatalError ?? "An unexpected error occurred while connecting to the classroom.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.7), 
+                        fontSize: 15,
+                        height: 1.5),
+                  ),
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _fatalError = null;
+                          _connectionState = "Retrying connection...";
+                        });
+                        _initClassroom(); // Re-initialize
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text("RETRY CONNECTION", 
+                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white60,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                      ),
+                      child: const Text("RETURN TO DASHBOARD"),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildWaitingRoomOverlay() {
     return Positioned.fill(

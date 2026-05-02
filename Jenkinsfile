@@ -42,6 +42,17 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🚀 Running SonarQube Static Analysis...'
+                dir('signaling_server') {
+                    withSonarQubeEnv('SonarQube') {
+                        bat "sonar-scanner -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.host.url=${env.SONAR_HOST_URL}"
+                    }
+                }
+            }
+        }
+
         stage('Clean & Build APK') {
             steps {
                 echo '🛠️ Cleaning and building Mobile APK...'
@@ -96,9 +107,9 @@ pipeline {
                 echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
                 script {
                     def ocCmd = env.OC_PATH ?: 'oc'
-                    // Token is stored as a Jenkins Secret Text credential (id: 'openshift-token')
+                    // Token is stored as a Jenkins Secret Text credential (id: 'oc-token')
                     // NEVER hardcode tokens in the Jenkinsfile — rotate via Jenkins UI if compromised
-                    withCredentials([string(credentialsId: 'openshift-token', variable: 'TOKEN')]) {
+                    withCredentials([string(credentialsId: 'oc-token', variable: 'TOKEN')]) {
                         bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
                         bat "${ocCmd} project ${env.OC_PROJECT}"
                         bat "${ocCmd} apply -f openshift/mongodb.yaml"

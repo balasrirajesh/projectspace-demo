@@ -336,8 +336,7 @@ class _SessionControlPageState extends State<SessionControlPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
           onTap: () {
-            Navigator.push(
-              context,
+            Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(
                   builder: (context) =>
                       InteractiveClassroomPage(roomId: session['id'])),
@@ -511,8 +510,7 @@ class _SessionControlPageState extends State<SessionControlPage> {
                 final roomId =
                     "FACULTY-${math.Random().nextInt(9999).toString().padLeft(4, '0')}";
                 Navigator.pop(context); // Close sheet
-                Navigator.push(
-                  context,
+                Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
                       builder: (context) =>
                           InteractiveClassroomPage(roomId: roomId)),
