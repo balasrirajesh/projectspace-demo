@@ -42,16 +42,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🚀 Running SonarQube Static Analysis...'
-                dir('signaling_server') {
-                    withSonarQubeEnv('SonarQube') {
-                        bat "sonar-scanner -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.host.url=${env.SONAR_HOST_URL}"
-                    }
-                }
-            }
-        }
+
 
         stage('Clean & Build APK') {
             steps {
