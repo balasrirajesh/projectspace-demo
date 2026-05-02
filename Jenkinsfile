@@ -19,6 +19,10 @@ pipeline {
         OC_PROJECT = "23mh1a05n6-dev"
         OC_SERVER = "https://api.rm2.thpm.p1.openshiftapps.com:6443"
         SIGNALING_URL = "https://signaling-server-23mh1a05n6-dev.apps.rm2.thpm.p1.openshiftapps.com"
+        
+        // SONARQUBE CONFIG
+        SONAR_PROJECT_KEY = "signaling-server"
+        SONAR_HOST_URL = "http://localhost:9000"
     }
 
     stages {
@@ -42,7 +46,22 @@ pipeline {
             }
         }
 
-
+        stage('SonarQube Analysis') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    echo '🚀 Running SonarQube Static Analysis (Non-blocking)...'
+                    script {
+                        // This 'SonarScanner' name must match the name in Global Tool Configuration
+                        def scannerHome = tool 'SonarScanner'
+                        dir('signaling_server') {
+                            withSonarQubeEnv('SonarQube') {
+                                bat "\"${scannerHome}\\bin\\sonar-scanner.bat\" -Dsonar.projectKey=${env.SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.host.url=${env.SONAR_HOST_URL}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Clean & Build APK') {
             steps {
