@@ -538,7 +538,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                     ),
                     child: const Icon(Icons.cloud_off_rounded,
                         color: Colors.redAccent, size: 80),
-                  ).animate().scale(duration: 400.ms, curve: Curves.backOut),
+                  ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
                   const SizedBox(height: 32),
                   const Text(
                     "Connection Failed",
