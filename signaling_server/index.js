@@ -262,7 +262,21 @@ io.on('connection', (socket) => {
     socket.to(data.roomId).emit('user-raised-hand', data);
   });
 
-  // Explicit Room Leave: { roomId }
+  socket.on('update-screen-share', (data) => {
+    socket.to(data.roomId).emit('screen-share-updated', {
+      socketId: socket.id,
+      isSharing: data.isSharing
+    });
+  });
+
+  socket.on('update-media-permission', (data) => {
+    io.to(data.roomId).emit('media-permission-updated', {
+      targetId: data.targetId,
+      mic: data.mic,
+      video: data.video,
+      screenShare: data.screenShare // Added screenShare permission
+    });
+  });
   socket.on('leave-room', (data) => {
     const roomId = data.roomId;
     console.log(`[LEAVE] User ${socket.id} leaving room ${roomId}`);

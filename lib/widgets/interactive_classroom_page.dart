@@ -29,7 +29,9 @@ class InteractiveClassroomPage extends StatefulWidget {
 class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   final ClassroomService _classroomService = ClassroomService();
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _localScreenRenderer = RTCVideoRenderer();
   final Map<String, RTCVideoRenderer> _remoteRenderers = {};
+  final Map<String, RTCVideoRenderer> _remoteScreenRenderers = {};
   final List<Map<String, String>> _messages = [];
   final TextEditingController _chatController = TextEditingController();
 
@@ -41,6 +43,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   bool _hasHost = false;
 
   bool _isLocalHandRaised = false;
+  bool _isSharingScreen = false;
+  String? _activeScreenShareId; // ID of participant currently sharing screen
   final Set<String> _raisedHands = {};
   String _connectionState = "Connecting to classroom handshake...";
   String? _fatalError;
@@ -48,7 +52,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   // Permission State
   bool _canAccessMic = false;
   bool _canAccessVideo = false;
-  final Map<String, Map<String, bool>> _studentPermissions = {}; // socketId -> {mic, video}
+  bool _canShareScreen = false;
+  final Map<String, Map<String, bool>> _studentPermissions = {}; // socketId -> {mic, video, screenShare}
 
   final ScrollController _scrollController = ScrollController();
 
@@ -60,6 +65,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   Future<void> _initClassroom() async {
     await _localRenderer.initialize();
+    await _localScreenRenderer.initialize();
 
     final auth = context.read<AuthProvider>();
 
@@ -86,7 +92,40 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       setState(() {
         _remoteRenderers[id]?.dispose();
         _remoteRenderers.remove(id);
+        if (_activeScreenShareId == id) _activeScreenShareId = null;
       });
+    };
+
+    _classroomService.onRemoteScreenStreamAdded = (id, stream) async {
+      final renderer = RTCVideoRenderer();
+      await renderer.initialize();
+      renderer.srcObject = stream;
+      if (mounted) {
+        setState(() {
+          _remoteScreenRenderers[id] = renderer;
+          _activeScreenShareId = id;
+        });
+      }
+    };
+
+    _classroomService.onRemoteScreenStreamRemoved = (id) {
+      setState(() {
+        _remoteScreenRenderers[id]?.dispose();
+        _remoteScreenRenderers.remove(id);
+        if (_activeScreenShareId == id) _activeScreenShareId = null;
+      });
+    };
+
+    _classroomService.onRemoteScreenShareUpdated = (id, isSharing) {
+      if (mounted) {
+        setState(() {
+          if (isSharing) {
+            _activeScreenShareId = id;
+          } else if (_activeScreenShareId == id) {
+            _activeScreenShareId = null;
+          }
+        });
+      }
     };
 
     _classroomService.onChatMessage = (from, message) {
@@ -170,11 +209,12 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    _classroomService.onPermissionUpdate = (mic, video) async {
+    _classroomService.onPermissionUpdate = (mic, video, screenShare) async {
       if (mounted) {
         setState(() {
           _canAccessMic = mic;
           _canAccessVideo = video;
+          _canShareScreen = screenShare;
         });
 
         if ((mic || video) && _classroomService.localStream == null) {
@@ -312,10 +352,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     // Flutter's dispose() is not async - if we only call _cleanup() (which is
     // async/fire-and-forget), the tracks may stay active after the widget dies.
     _localRenderer.srcObject = null;
+    _localScreenRenderer.srcObject = null;
     for (var renderer in _remoteRenderers.values) {
       renderer.srcObject = null;
     }
+    for (var renderer in _remoteScreenRenderers.values) {
+      renderer.srcObject = null;
+    }
     _classroomService.stopLocalStream();
+    _classroomService.stopScreenShare();
 
     // Schedule the async teardown (socket disconnect, renderer dispose)
     _cleanup();
@@ -342,10 +387,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     // Step 3: Now it is safe to dispose the renderers.
     await _localRenderer.dispose();
+    await _localScreenRenderer.dispose();
     for (var renderer in _remoteRenderers.values) {
       await renderer.dispose();
     }
+    for (var renderer in _remoteScreenRenderers.values) {
+      await renderer.dispose();
+    }
     _remoteRenderers.clear();
+    _remoteScreenRenderers.clear();
 
     // Step 4: Leave the signaling room and clean up peer connections.
     await _classroomService.leaveRoom();
@@ -669,6 +719,34 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     );
   }
 
+  void _toggleScreenShare() async {
+    final auth = context.read<AuthProvider>();
+    if (_isSharingScreen) {
+      _classroomService.stopScreenShare();
+      setState(() {
+        _isSharingScreen = false;
+        if (_activeScreenShareId == 'local') _activeScreenShareId = null;
+        _localScreenRenderer.srcObject = null;
+      });
+    } else {
+      try {
+        await _classroomService.startScreenShare(auth.userName);
+        setState(() {
+          _isSharingScreen = true;
+          _activeScreenShareId = 'local';
+          _localScreenRenderer.srcObject = _classroomService.localScreenStream;
+        });
+      } catch (e) {
+        dev.log('❌ [RTC] Failed to start screen share: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not start screen share.")),
+          );
+        }
+      }
+    }
+  }
+
   void _showAttendeesList() {
     showModalBottomSheet(
       context: context,
@@ -731,10 +809,10 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         icon: const Icon(Icons.security_update_good, size: 18),
                         label: const Text("Grant All Access"),
                         onPressed: () {
-                          _classroomService.updateAllStudentsPermission(true, true);
+                          _classroomService.updateAllStudentsPermission(true, true, true);
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Granted media access to all students")),
+                            const SnackBar(content: Text("Granted all access to all students")),
                           );
                         },
                       ),
@@ -791,14 +869,16 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                                   final studentId = attendees[index]['id'] as String;
                                   final currentMic = _studentPermissions[studentId]?['mic'] ?? false;
                                   final currentVid = _studentPermissions[studentId]?['video'] ?? false;
+                                  final currentScreen = _studentPermissions[studentId]?['screenShare'] ?? false;
                                   
                                   setState(() {
                                     _studentPermissions[studentId] = {
                                       'mic': !currentMic,
-                                      'video': currentVid
+                                      'video': currentVid,
+                                      'screenShare': currentScreen
                                     };
                                   });
-                                  _classroomService.updateStudentPermission(studentId, !currentMic, currentVid);
+                                  _classroomService.updateStudentPermission(studentId, !currentMic, currentVid, currentScreen);
                                 },
                               ),
                               IconButton(
@@ -815,14 +895,42 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                                   final studentId = attendees[index]['id'] as String;
                                   final currentMic = _studentPermissions[studentId]?['mic'] ?? false;
                                   final currentVid = _studentPermissions[studentId]?['video'] ?? false;
+                                  final currentScreen = _studentPermissions[studentId]?['screenShare'] ?? false;
                                   
                                   setState(() {
                                     _studentPermissions[studentId] = {
                                       'mic': currentMic,
-                                      'video': !currentVid
+                                      'video': !currentVid,
+                                      'screenShare': currentScreen
                                     };
                                   });
-                                  _classroomService.updateStudentPermission(studentId, currentMic, !currentVid);
+                                  _classroomService.updateStudentPermission(studentId, currentMic, !currentVid, currentScreen);
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _studentPermissions[attendees[index]['id']]?['screenShare'] ?? false
+                                      ? Icons.screen_share
+                                      : Icons.stop_screen_share,
+                                  color: _studentPermissions[attendees[index]['id']]?['screenShare'] ?? false
+                                      ? Colors.blueAccent
+                                      : Colors.white24,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  final studentId = attendees[index]['id'] as String;
+                                  final currentMic = _studentPermissions[studentId]?['mic'] ?? false;
+                                  final currentVid = _studentPermissions[studentId]?['video'] ?? false;
+                                  final currentScreen = _studentPermissions[studentId]?['screenShare'] ?? false;
+                                  
+                                  setState(() {
+                                    _studentPermissions[studentId] = {
+                                      'mic': currentMic,
+                                      'video': currentVid,
+                                      'screenShare': !currentScreen
+                                    };
+                                  });
+                                  _classroomService.updateStudentPermission(studentId, currentMic, currentVid, !currentScreen);
                                 },
                               ),
                             ],
@@ -863,6 +971,64 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     final auth = context.read<AuthProvider>();
     final isStudent = auth.role == UserRole.student;
 
+    // 1. Identify active screen share
+    Widget? screenShareWidget;
+    String? screenShareName;
+    if (_activeScreenShareId != null) {
+      final renderer = _activeScreenShareId == 'local' 
+          ? _localScreenRenderer 
+          : _remoteScreenRenderers[_activeScreenShareId];
+      
+      if (renderer != null && renderer.srcObject != null) {
+        final meta = _activeScreenShareId == 'local' 
+            ? {'userName': 'You'} 
+            : (_classroomService.participants[_activeScreenShareId] ?? {});
+        screenShareName = meta['userName'] ?? 'Participant';
+
+        screenShareWidget = Container(
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              children: [
+                RTCVideoView(
+                  renderer,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                ),
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.screen_share, color: Colors.white, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          "$screenShareName is sharing",
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    // 2. Prepare participant list for sidebar/grid
     final allParticipants = [
       {
         'id': 'local',
@@ -893,180 +1059,192 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }),
     ];
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isSmallScreen ? 1 : 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: isSmallScreen ? 1.3 : 1.2,
-      ),
-      itemCount: allParticipants.length,
-      itemBuilder: (context, index) {
-        final p = allParticipants[index];
-        final isHost = p['isHost'] == true;
-        final isHandRaised = (p['id'] == 'local' && _isLocalHandRaised) ||
-            _raisedHands.contains(p['name']);
+    // If no screen share, use the original grid with Alumni prominence
+    if (screenShareWidget == null) {
+      // Find host to make them full screen if desired
+      final hostIndex = allParticipants.indexWhere((p) => p['isHost'] == true);
+      
+      return GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isSmallScreen ? 1 : (allParticipants.length > 2 ? 2 : 1),
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: isSmallScreen ? 1.3 : (allParticipants.length <= 2 ? 1.6 : 1.2),
+        ),
+        itemCount: allParticipants.length,
+        itemBuilder: (context, index) => _buildParticipantTile(allParticipants[index]),
+      );
+    }
 
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isHost
-                  ? Colors.amber.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.05),
-              width: isHost ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isHost
-                    ? Colors.amber.withOpacity(0.1)
-                    : Colors.black.withOpacity(0.4),
-                blurRadius: 15,
-                spreadRadius: 2,
+    // 3. 90% Screen Share Layout
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      child: isSmallScreen 
+        ? Column(
+            children: [
+              Expanded(flex: 7, child: screenShareWidget),
+              const SizedBox(height: 12),
+              Expanded(
+                flex: 3,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: allParticipants.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: 200,
+                    child: _buildParticipantTile(allParticipants[index]),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(flex: 9, child: screenShareWidget),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: ListView.separated(
+                  itemCount: allParticipants.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) => AspectRatio(
+                    aspectRatio: 1.2,
+                    child: _buildParticipantTile(allParticipants[index]),
+                  ),
+                ),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Stack(
-              children: [
-                if (_localRenderer.srcObject != null &&
-                    p['renderer'] == _localRenderer)
-                  RTCVideoView(
-                    _localRenderer,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                    mirror: true,
-                  )
-                else if (p['renderer'] != _localRenderer &&
-                    (p['renderer'] as RTCVideoRenderer).srcObject != null)
-                  RTCVideoView(
-                    p['renderer'] as RTCVideoRenderer,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                    mirror: false,
-                  )
-                else
-                  Container(
-                    color: Colors.black87,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.videocam_off,
-                              color: Colors.white24, size: 40),
-                          const SizedBox(height: 12),
-                          Text(
-                            p['name'] as String,
-                            style: const TextStyle(
-                                color: Colors.white24, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.2),
-                          Colors.transparent,
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.6),
-                        ],
-                        stops: const [0.0, 0.2, 0.8, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  child: ClipRRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isHost) ...[
-                              const Icon(Icons.verified,
-                                  color: Colors.blueAccent, size: 16),
-                              const SizedBox(width: 8),
-                            ],
-                            Text(
-                              p['name'] as String,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Row(
+    );
+  }
+
+  Widget _buildParticipantTile(Map<String, dynamic> p) {
+    final isHost = p['isHost'] == true;
+    final isHandRaised = (p['id'] == 'local' && _isLocalHandRaised) ||
+        _raisedHands.contains(p['name']);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isHost
+              ? Colors.amber.withOpacity(0.5)
+              : Colors.white.withOpacity(0.05),
+          width: isHost ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isHost
+                ? Colors.amber.withOpacity(0.1)
+                : Colors.black.withOpacity(0.4),
+            blurRadius: 15,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            if (p['renderer'].srcObject != null)
+              RTCVideoView(
+                p['renderer'] as RTCVideoRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                mirror: p['id'] == 'local',
+              )
+            else
+              Container(
+                color: Colors.black87,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isHost)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: p['role'] == 'admin'
-                                ? Colors.blueAccent
-                                : Colors.amber,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                              p['role'] == 'admin' ? "FACULTY" : "ALUMNUS",
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900)),
-                        ),
-                      if (isHandRaised)
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.amber,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.front_hand,
-                              color: Colors.white, size: 14),
-                        ).animate().shake(),
-                      const SizedBox(width: 8),
-                      const CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Colors.black45,
-                        child: Icon(Icons.mic,
-                            color: Colors.greenAccent, size: 16),
+                      const Icon(Icons.videocam_off,
+                          color: Colors.white24, size: 30),
+                      const SizedBox(height: 8),
+                      Text(
+                        p['name'] as String,
+                        style: const TextStyle(
+                            color: Colors.white24, fontSize: 10),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.1),
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.5),
+                    ],
+                    stops: const [0.0, 0.2, 0.8, 1.0],
+                  ),
+                ),
+              ),
             ),
-          ),
-        );
-      },
+            Positioned(
+              bottom: 12,
+              left: 12,
+              child: ClipRRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    child: Text(
+                      p['name'] as String,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (isHost || isHandRaised)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Row(
+                  children: [
+                    if (isHandRaised)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.amber,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.front_hand,
+                            color: Colors.white, size: 12),
+                      ).animate().shake(),
+                    if (isHost) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.verified,
+                          color: Colors.blueAccent, size: 14),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1251,6 +1429,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   Widget _buildControls() {
+    final auth = context.read<AuthProvider>();
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -1290,6 +1469,15 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                     activeColor: Colors.blueAccent,
                     onPressed: _toggleCamera,
                   ),
+
+                  // Screen Share Button
+                  if (auth.role != UserRole.student || _canShareScreen)
+                    _buildControlBtn(
+                      icon: _isSharingScreen ? Icons.stop_screen_share : Icons.screen_share,
+                      active: _isSharingScreen,
+                      activeColor: Colors.green,
+                      onPressed: _toggleScreenShare,
+                    ),
 
                   // Audio Output Selection Menu
                   PopupMenuButton<String>(

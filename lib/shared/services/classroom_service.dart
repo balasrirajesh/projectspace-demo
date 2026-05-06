@@ -24,8 +24,10 @@ class ClassroomService {
 
   // WebRTC core objects
   MediaStream? localStream;
+  MediaStream? localScreenStream; // Added for screen sharing
   final Map<String, RTCPeerConnection> peerConnections = {};
   final Map<String, MediaStream> remoteStreams = {};
+  final Map<String, MediaStream> remoteScreenStreams = {}; // Added for remote screen shares
   final Map<String, Map<String, String>> participants = {}; // socketId -> { role, userName }
 
   // Handlers for the UI
@@ -38,7 +40,8 @@ class ClassroomService {
   Function()? onConnected;
   Function(List<dynamic> rooms)? onRoomListUpdate;
   Function(Map<String, dynamic> data)? onAnnouncementReceived;
-  Function(bool canAccessMic, bool canAccessVideo)? onPermissionUpdate;
+  Function(bool canAccessMic, bool canAccessVideo, bool canShareScreen)? onPermissionUpdate;
+  Function(String socketId, bool isSharing)? onRemoteScreenShareUpdated;
 
   // Robust WebRTC Configuration using STUN & Free TURN for NAT Traversal
   final Map<String, dynamic> _rtcConfig = {
@@ -206,7 +209,13 @@ class ClassroomService {
     
     _socket!.on('media-permission-updated', (data) {
       if (data['targetId'] == _socket!.id || data['targetId'] == 'all') {
-        onPermissionUpdate?.call(data['mic'] ?? false, data['video'] ?? false);
+        onPermissionUpdate?.call(data['mic'] ?? false, data['video'] ?? false, data['screenShare'] ?? false);
+      }
+    });
+
+    _socket!.on('screen-share-updated', (data) {
+      if (onRemoteScreenShareUpdated != null) {
+        onRemoteScreenShareUpdated!(data['socketId'], data['isSharing']);
       }
     });
 
@@ -236,8 +245,18 @@ class ClassroomService {
 
     pc.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        remoteStreams[remoteId] = event.streams[0];
-        onRemoteStreamAdded?.call(remoteId, event.streams[0]);
+        final stream = event.streams[0];
+        
+        // Logic to distinguish screen share: 
+        // If we already have a remoteStream for this participant, and a second stream arrives,
+        // it's likely the screen share.
+        if (remoteStreams.containsKey(remoteId) && remoteStreams[remoteId] != stream) {
+          remoteScreenStreams[remoteId] = stream;
+          onRemoteScreenStreamAdded?.call(remoteId, stream);
+        } else {
+          remoteStreams[remoteId] = stream;
+          onRemoteStreamAdded?.call(remoteId, stream);
+        }
       } else {
         _createFallbackStream(remoteId, event.track);
       }
@@ -245,6 +264,10 @@ class ClassroomService {
 
     return pc;
   }
+
+  // Add new callbacks
+  Function(String participantId, MediaStream stream)? onRemoteScreenStreamAdded;
+  Function(String participantId)? onRemoteScreenStreamRemoved;
 
   Future<void> _createFallbackStream(String remoteId, MediaStreamTrack track) async {
     if (remoteStreams.containsKey(remoteId)) {
@@ -315,7 +338,9 @@ class ClassroomService {
     peerConnections[id]?.close();
     peerConnections.remove(id);
     remoteStreams.remove(id);
+    remoteScreenStreams.remove(id);
     onRemoteStreamRemoved?.call(id);
+    onRemoteScreenStreamRemoved?.call(id);
   }
 
   // --- UI Actions ---
@@ -373,25 +398,81 @@ class ClassroomService {
     }
   }
 
-  void updateStudentPermission(String studentId, bool mic, bool video) {
+  void updateStudentPermission(String studentId, bool mic, bool video, bool screenShare) {
     if (_role == ClassroomRole.mentor && _socket != null) {
       _socket!.emit('update-media-permission', {
         'roomId': _roomId,
         'targetId': studentId,
         'mic': mic,
         'video': video,
+        'screenShare': screenShare,
       });
     }
   }
 
-  void updateAllStudentsPermission(bool mic, bool video) {
+  void updateAllStudentsPermission(bool mic, bool video, bool screenShare) {
     if (_role == ClassroomRole.mentor && _socket != null) {
       _socket!.emit('update-media-permission', {
         'roomId': _roomId,
         'targetId': 'all',
         'mic': mic,
         'video': video,
+        'screenShare': screenShare,
       });
+    }
+  }
+
+  Future<void> startScreenShare(String userName) async {
+    try {
+      localScreenStream = await navigator.mediaDevices.getDisplayMedia({
+        'video': true,
+        'audio': false,
+      });
+
+      // Add screen tracks to all existing peer connections
+      for (var pc in peerConnections.values) {
+        for (var track in localScreenStream!.getTracks()) {
+          pc.addTrack(track, localScreenStream!);
+        }
+        
+        // Renegotiate
+        RTCSessionDescription offer = await pc.createOffer({
+          'offerToReceiveAudio': 1,
+          'offerToReceiveVideo': 1,
+        });
+        await pc.setLocalDescription(offer);
+        _socket!.emit('offer', {
+          'target': peerConnections.keys.firstWhere((k) => peerConnections[k] == pc),
+          'offer': offer.toMap(),
+          'fromName': userName,
+        });
+      }
+
+      _socket!.emit('update-screen-share', {
+        'roomId': _roomId,
+        'isSharing': true
+      });
+      
+      dev.log('🖥️ [RTC] Screen share started');
+    } catch (e) {
+      dev.log('❌ [RTC] Screen share error: $e');
+      rethrow;
+    }
+  }
+
+  void stopScreenShare() {
+    if (localScreenStream != null) {
+      for (var track in localScreenStream!.getTracks()) {
+        track.stop();
+      }
+      localScreenStream!.dispose();
+      localScreenStream = null;
+
+      _socket!.emit('update-screen-share', {
+        'roomId': _roomId,
+        'isSharing': false
+      });
+      dev.log('🛑 [RTC] Screen share stopped');
     }
   }
 
