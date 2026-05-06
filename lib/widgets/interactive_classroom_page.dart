@@ -70,6 +70,10 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     final auth = context.read<AuthProvider>();
 
     _classroomService.onRemoteStreamAdded = (id, stream) async {
+      if (_remoteRenderers.containsKey(id)) {
+        _remoteRenderers[id]!.srcObject = stream;
+        return;
+      }
       final renderer = RTCVideoRenderer();
       await renderer.initialize();
       renderer.srcObject = stream;
@@ -97,6 +101,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     };
 
     _classroomService.onRemoteScreenStreamAdded = (id, stream) async {
+      if (_remoteScreenRenderers.containsKey(id)) {
+        _remoteScreenRenderers[id]!.srcObject = stream;
+        return;
+      }
+
       final renderer = RTCVideoRenderer();
       await renderer.initialize();
       renderer.srcObject = stream;

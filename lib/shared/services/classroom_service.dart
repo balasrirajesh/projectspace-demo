@@ -228,6 +228,15 @@ class ClassroomService {
     RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
     peerConnections[remoteId] = pc;
 
+    // Unified Plan: Ensure we can receive media even if not sending yet.
+    // This creates the necessary m-lines in the SDP.
+    await pc.addTransceiver(
+        kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+        init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
+    await pc.addTransceiver(
+        kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+        init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
+
     // SAFE TRACK ADDITION: Only add if media is actually active
     if (localStream != null) {
       for (var track in localStream!.getTracks()) {
@@ -247,10 +256,15 @@ class ClassroomService {
       if (event.streams.isNotEmpty) {
         final stream = event.streams[0];
         
+        // Ensure we only trigger callbacks for NEW streams
+        if (remoteStreams[remoteId]?.id == stream.id || remoteScreenStreams[remoteId]?.id == stream.id) {
+          return;
+        }
+
         // Logic to distinguish screen share: 
-        // If we already have a remoteStream for this participant, and a second stream arrives,
-        // it's likely the screen share.
-        if (remoteStreams.containsKey(remoteId) && remoteStreams[remoteId] != stream) {
+        // If we already have a remoteStream (camera) for this participant, 
+        // a second stream arriving is likely the screen share.
+        if (remoteStreams.containsKey(remoteId)) {
           remoteScreenStreams[remoteId] = stream;
           onRemoteScreenStreamAdded?.call(remoteId, stream);
         } else {
@@ -259,6 +273,16 @@ class ClassroomService {
         }
       } else {
         _createFallbackStream(remoteId, event.track);
+      }
+    };
+
+    pc.onIceConnectionState = (state) {
+      dev.log('❄️ [RTC] Connection state with $remoteId: $state');
+      // Only remove if it's truly failed or closed. 
+      // Disconnected can be temporary (network flip).
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+        _removePeer(remoteId);
       }
     };
 
@@ -491,14 +515,29 @@ class ClassroomService {
           }
         });
         
-        // Add tracks to existing peer connections
-        peerConnections.forEach((id, pc) {
-          localStream!.getTracks().forEach((track) {
+        // Add tracks to existing peer connections AND renegotiate
+        for (var entry in peerConnections.entries) {
+          final id = entry.key;
+          final pc = entry.value;
+          
+          for (var track in localStream!.getTracks()) {
             pc.addTrack(track, localStream!);
+          }
+          
+          // CRITICAL: Renegotiate so the other side knows we added tracks
+          RTCSessionDescription offer = await pc.createOffer({
+            'offerToReceiveAudio': 1,
+            'offerToReceiveVideo': 1,
           });
-        });
+          await pc.setLocalDescription(offer);
+          _socket!.emit('offer', {
+            'target': id,
+            'offer': offer.toMap(),
+            'fromName': 'Participant', // Usually the UI provides this
+          });
+        }
         
-        dev.log('📹 [RTC] Local stream started after permission granted');
+        dev.log('📹 [RTC] Local stream started and renegotiated with ${peerConnections.length} peers');
       }
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
