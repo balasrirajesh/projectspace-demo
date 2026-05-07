@@ -30,6 +30,7 @@ class ClassroomService {
   final Map<String, MediaStream> remoteScreenStreams = {}; 
   final Map<String, Map<String, String>> participants = {}; 
   final Map<String, List<RTCIceCandidate>> _iceQueues = {}; // Queue for candidates arriving before remote description
+  final Set<String> _remoteDescriptionsSet = {}; // Track which peers have had their remote description set
 
   // Handlers for the UI
   Function(String participantId, MediaStream stream)? onRemoteStreamAdded;
@@ -330,6 +331,7 @@ class ClassroomService {
 
     final pc = await _createPeerConnection(from, localName);
     await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+    _remoteDescriptionsSet.add(from);
     
     // Process queued ICE candidates
     if (_iceQueues.containsKey(from)) {
@@ -356,6 +358,7 @@ class ClassroomService {
     final pc = peerConnections[from];
     if (pc != null) {
       await pc.setRemoteDescription(RTCSessionDescription(data['answer']['sdp'], data['answer']['type']));
+      _remoteDescriptionsSet.add(from);
       
       // Process queued ICE candidates
       if (_iceQueues.containsKey(from)) {
@@ -374,7 +377,7 @@ class ClassroomService {
     final candidate = RTCIceCandidate(
         data['candidate']['candidate'], data['candidate']['sdpMid'], data['candidate']['sdpMLineIndex']);
 
-    if (pc != null && pc.remoteDescription != null) {
+    if (pc != null && _remoteDescriptionsSet.contains(from)) {
       await pc.addCandidate(candidate);
     } else {
       dev.log('❄️ [RTC] Queuing ICE candidate from $from (Remote description not yet set)');
@@ -385,6 +388,7 @@ class ClassroomService {
   void _removePeer(String id) {
     peerConnections[id]?.close();
     peerConnections.remove(id);
+    _remoteDescriptionsSet.remove(id);
     remoteStreams.remove(id);
     remoteScreenStreams.remove(id);
     onRemoteStreamRemoved?.call(id);
