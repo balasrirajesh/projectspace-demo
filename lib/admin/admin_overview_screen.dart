@@ -68,160 +68,160 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                   ],
                 ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
 
-            const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-            const Text('Registration Trend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            Container(
-              height: 200,
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-              decoration: BoxDecoration(
-                color: AppColors.bgCard,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
-                boxShadow: AppColors.cardShadow,
-              ),
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: false),
-                  titlesData: const FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 1), FlSpot(1, 3), FlSpot(2, 2), FlSpot(3, 5), FlSpot(4, 3), FlSpot(5, 7), FlSpot(6, 8),
-                      ],
-                      isCurved: true,
-                      color: AppColors.primary,
-                      barWidth: 4,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: false),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: AppColors.primary.withOpacity(0.1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(delay: 300.ms),
-
-            const SizedBox(height: 32),
-
-            const Text('System Reports', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            _ReportTile(
-              title: 'New Alumni Requests',
-              count: '5',
-              color: AppColors.alumni,
-              icon: Icons.person_add_rounded,
-              onTap: () => context.go('/admin-users'),
-            ),
-            const SizedBox(height: 12),
-            _ReportTile(
-              title: 'Reported Content',
-              count: '2',
-              color: AppColors.error,
-              icon: Icons.flag_rounded,
-              onTap: () => _showReportedContentSheet(context),
-            ),
-            const SizedBox(height: 32),
-
-            // Live Classroom Oversight
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Live Classroom Oversight",
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B)),
-                ),
+                const Text('Registration Trend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
-                if (admin.activeSessionsList.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.bgCard,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Text('No active sessions currently.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted)),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
-                      boxShadow: AppColors.cardShadow,
-                    ),
-                    child: Column(
-                      children: admin.activeSessionsList
-                          .map((s) => _buildLiveSessionRow(context, s))
-                          .toList(),
+                Container(
+                  height: 200,
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: AppColors.cardShadow,
+                  ),
+                  child: LineChart(
+                    LineChartData(
+                      gridData: const FlGridData(show: false),
+                      titlesData: const FlTitlesData(show: false),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: const [
+                            FlSpot(0, 1), FlSpot(1, 3), FlSpot(2, 2), FlSpot(3, 5), FlSpot(4, 3), FlSpot(5, 7), FlSpot(6, 8),
+                          ],
+                          isCurved: true,
+                          color: AppColors.primary,
+                          barWidth: 4,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color: AppColors.primary.withOpacity(0.1),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ).animate().fadeIn(delay: 300.ms),
+
                 const SizedBox(height: 32),
-              ],
-            ).animate().fadeIn(delay: 500.ms),
 
-            // ── Rajesh: Admin Quick Actions ─────────────────────────────
-            const Text('Admin Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 2.2,
-              children: [
-                _AdminActionTile(
-                  icon: Icons.campaign_rounded,
-                  label: 'Announcements',
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsPage())),
+                const Text('System Reports', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                _ReportTile(
+                  title: 'New Alumni Requests',
+                  count: '5',
+                  color: AppColors.alumni,
+                  icon: Icons.person_add_rounded,
+                  onTap: () => context.go('/admin-users'),
                 ),
-                _AdminActionTile(
-                  icon: Icons.video_library_rounded,
-                  label: 'Live Sessions',
-                  color: Colors.redAccent,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SessionControlPage())),
+                const SizedBox(height: 12),
+                _ReportTile(
+                  title: 'Reported Content',
+                  count: '2',
+                  color: AppColors.error,
+                  icon: Icons.flag_rounded,
+                  onTap: () => _showReportedContentSheet(context),
                 ),
-                _AdminActionTile(
-                  icon: Icons.people_alt_rounded,
-                  label: 'Connections',
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConnectionMonitorPage())),
-                ),
-                _AdminActionTile(
-                  icon: Icons.manage_accounts_rounded,
-                  label: 'Manage Users',
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementPage())),
-                ),
-              ],
-            ).animate().fadeIn(delay: 400.ms),
+                const SizedBox(height: 32),
 
-            const SizedBox(height: 40),
-          ],
+                // ── Student Branch: Live Classroom Oversight ─────────────────────────────
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Live Classroom Oversight",
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    const SizedBox(height: 16),
+                    if (admin.activeSessionsList.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppColors.bgCard,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: const Text('No active sessions currently.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted)),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                          boxShadow: AppColors.cardShadow,
+                        ),
+                        child: Column(
+                          children: admin.activeSessionsList
+                              .map((s) => _buildLiveSessionRow(context, s))
+                              .toList(),
+                        ),
+                      ),
+                    const SizedBox(height: 32),
+                  ],
+                ).animate().fadeIn(delay: 500.ms),
+
+                // ── Student Branch: Admin Quick Actions ─────────────────────────────
+                const Text('Admin Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 2.2,
+                  children: [
+                    _AdminActionTile(
+                      icon: Icons.campaign_rounded,
+                      label: 'Announcements',
+                      color: Colors.indigo,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsPage())),
+                    ),
+                    _AdminActionTile(
+                      icon: Icons.video_library_rounded,
+                      label: 'Live Sessions',
+                      color: Colors.redAccent,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SessionControlPage())),
+                    ),
+                    _AdminActionTile(
+                      icon: Icons.people_alt_rounded,
+                      label: 'Connections',
+                      color: Colors.teal,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConnectionMonitorPage())),
+                    ),
+                    _AdminActionTile(
+                      icon: Icons.manage_accounts_rounded,
+                      label: 'Manage Users',
+                      color: Colors.orange,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementPage())),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 400.ms),
+
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _showCreateClassDialog(context),
+          backgroundColor: const Color(0xFF1E293B),
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text("Create Live Lab",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ).animate().fadeIn(delay: 800.ms),
       ),
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => _showCreateClassDialog(context),
-      backgroundColor: const Color(0xFF1E293B),
-      icon: const Icon(Icons.add_rounded, color: Colors.white),
-      label: const Text("Create Live Lab",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-    ).animate().fadeIn(delay: 800.ms),
-  ),
-);
-}
+    );
+  }
 
   void _showReportedContentSheet(BuildContext context) {
     final reports = [
@@ -301,6 +301,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
       ),
     );
   }
+
   void _showCreateClassDialog(BuildContext context) {
     final controller = TextEditingController();
     showDialog(

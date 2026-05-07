@@ -22,18 +22,25 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     final auth = legacy_provider.Provider.of<AuthProvider>(context, listen: false);
     final success = await auth.login(_emailController.text, _passwordController.text);
 
     if (success && mounted) {
-      // SYNC: Update Riverpod authProvider so the router knows we are logged in
       final riverpodAuth = ref.read(authProvider.notifier);
       final email = _emailController.text;
       final role = auth.role;
 
-      // Update Riverpod state first
       if (role == shared_role.UserRole.admin) {
         riverpodAuth.loginAsAdmin(email: email);
       } else if (role == shared_role.UserRole.mentor || role == shared_role.UserRole.alumni) {
@@ -42,10 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         riverpodAuth.loginAsStudent(email: email);
       }
 
-      // Defer navigation to NEXT microtask so Riverpod can finish rebuilding
-      // the authProvider before GoRouter's redirect function reads it.
-      // Without this, the router assertion "Cannot use ref functions after
-      // dependency changed but before provider rebuilt" is triggered.
       Future.microtask(() {
         if (!mounted) return;
         if (role == shared_role.UserRole.admin) {
@@ -65,7 +68,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      // The router will now automatically redirect because isLoggedIn became true
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -84,6 +86,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.settings_ethernet_rounded, color: AppColors.textMuted),
+          onPressed: () => showDialog(context: context, builder: (_) => const ServerIpDialog()),
+        ),
+        actions: [
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.info_outline_rounded, color: AppColors.textMuted),
+              onPressed: () {
+                if (_overlayEntry == null) {
+                  _overlayEntry = _createOverlayEntry(ctx);
+                  Overlay.of(ctx).insert(_overlayEntry!);
+                } else {
+                  _removeOverlay();
+                }
+              },
+            ),
+          ).animate().fadeIn(delay: 500.ms),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Stack(
         children: [
           Positioned(
@@ -126,14 +152,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 20),
                   Center(
                     child: Container(
-                      width: 100,
-                      height: 100,
+                      width: 84,
+                      height: 84,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.primary.withOpacity(0.3),
@@ -142,20 +168,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.school_rounded, size: 50, color: Colors.white),
+                      child: const Icon(Icons.school_rounded, size: 42, color: Colors.white),
                     ).animate()
                       .fadeIn(duration: 800.ms)
                       .scale(begin: const Offset(0.8, 0.8), curve: Curves.elasticOut),
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    "Welcome Back",
+                    "Welcome to GraduWay",
                     textAlign: TextAlign.center,
-                    style: textTheme.displayLarge,
+                    style: textTheme.displayLarge?.copyWith(fontSize: 26),
                   ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3),
                   const SizedBox(height: 12),
                   Text(
-                    "Join the elite network of alumni and mentors",
+                    "Bridging the gap between students and success.",
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium,
                   ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.3),
@@ -197,22 +223,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         child: ElevatedButton(
                           onPressed: _login,
-                          child: const Text("Login"),
+                          child: const Text("Sign In"),
                         ),
                       ).animate().fadeIn(delay: 700.ms).scale(begin: const Offset(0.95, 0.95)),
-                  const SizedBox(height: 16),
-                  if (!auth.isLoading)
-                    OutlinedButton(
-                      onPressed: () async {
-                        // For Guest/Demo, we assume Student role if no domain is matched
-                        await auth.login(_emailController.text, "guest", allowDemoFallback: true);
-                        if (mounted) _login(); // Re-trigger the sync logic
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primary.withOpacity(0.2)),
-                      ),
-                      child: const Text("Continue as Guest"),
-                    ).animate().fadeIn(delay: 800.ms),
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -229,7 +242,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ],
                   ).animate().fadeIn(delay: 900.ms),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -256,5 +268,158 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+
+  OverlayEntry _createOverlayEntry(BuildContext context) {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        top: offset.dy + size.height + 10,
+        right: 20,
+        width: 280,
+        child: Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: _removeOverlay,
+            child: const _CredentialHintCard(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
 }
 
+class _CredentialHintCard extends StatelessWidget {
+  const _CredentialHintCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE3FF), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text(
+                'How to Login',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _HintRow(
+            icon: Icons.school_outlined,
+            role: 'Student',
+            color: AppColors.primary,
+            lines: const [
+              'Email ending with  @stud.com',
+              'e.g.  yourname@stud.com',
+              'Password: anything',
+            ],
+          ),
+          const Divider(height: 20, thickness: 1, color: Color(0xFFDDE3FF)),
+          _HintRow(
+            icon: Icons.work_outline_rounded,
+            role: 'Alumni',
+            color: AppColors.alumni,
+            lines: const [
+              'Email ending with  @alum.com',
+              'e.g.  yourname@alum.com',
+              'Password: anything',
+            ],
+          ),
+          const Divider(height: 20, thickness: 1, color: Color(0xFFDDE3FF)),
+          _HintRow(
+            icon: Icons.admin_panel_settings_outlined,
+            role: 'Admin',
+            color: AppColors.admin,
+            lines: const [
+              'Email ending with  @admin.com',
+              'e.g.  yourname@admin.com',
+              'Password: anything',
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05);
+  }
+}
+
+class _HintRow extends StatelessWidget {
+  final IconData icon;
+  final String role;
+  final Color color;
+  final List<String> lines;
+
+  const _HintRow({
+    required this.icon,
+    required this.role,
+    required this.color,
+    required this.lines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Login as $role',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              ...lines.map((line) => Text(
+                    line,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.textSecondary,
+                      height: 1.6,
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

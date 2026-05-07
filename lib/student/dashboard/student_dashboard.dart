@@ -1,50 +1,24 @@
-import 'dart:convert';
 import 'package:graduway/widgets/interactive_classroom_page.dart';
 import 'package:graduway/student/mentorship/broadcast_streaming_page.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graduway/alumni/shared/providers/auth_provider.dart';
-import 'package:graduway/alumni/shared/providers/mentorship_provider.dart';
-import 'package:http/http.dart' as http;
+import 'package:graduway/alumni/shared/providers/mentorship_provider.dart' as legacy_mentorship;
+import 'package:provider/provider.dart' as legacy_provider;
+import 'package:graduway/providers/app_providers.dart';
+import 'package:graduway/theme/app_colors.dart';
+import 'package:graduway/widgets/custom_app_bar.dart';
 
-class StudentDashboard extends StatefulWidget {
+class StudentDashboard extends ConsumerStatefulWidget {
   const StudentDashboard({super.key});
 
   @override
-  State<StudentDashboard> createState() => _StudentDashboardState();
+  ConsumerState<StudentDashboard> createState() => _StudentDashboardState();
 }
 
-class _StudentDashboardState extends State<StudentDashboard> {
+class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   final TextEditingController _roomIdController = TextEditingController();
-  List<dynamic> _mentors = [];
-  bool _isLoadingMentors = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchMentors();
-  }
-
-  Future<void> _fetchMentors() async {
-    try {
-      final url = AuthProvider.getBaseUrl('/alumni/list');
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _mentors = json.decode(response.body);
-          _isLoadingMentors = false;
-        });
-      } else {
-        throw Exception('Failed to load mentors');
-      }
-    } catch (e) {
-      debugPrint('Error fetching mentors: $e');
-      setState(() {
-        _isLoadingMentors = false;
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -52,12 +26,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
     super.dispose();
   }
 
-  void _joinSession() {
-    final roomId = _roomIdController.text.trim().toLowerCase().replaceAll(' ', '-');
+  void _joinSession(String roomId) {
     if (roomId.isNotEmpty) {
+      final formattedId = roomId.trim().toLowerCase().replaceAll(' ', '-');
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
-          builder: (context) => InteractiveClassroomPage(roomId: roomId),
+          builder: (context) => InteractiveClassroomPage(roomId: formattedId),
         ),
       );
     } else {
@@ -69,103 +43,284 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF5F7FA),
-      child: Stack(
-        children: [
-          SafeArea(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                _buildAppBar(context),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                      20, 20, 20, 100), // Extra bottom padding for FAB
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _buildGreeting(),
-                      const SizedBox(height: 24),
-                      _buildJoinSessionCard(),
-                      const SizedBox(height: 32),
-                      _buildLiveRoomsSection(), // New section for live rooms
-                      const SizedBox(height: 32),
-                      _buildSectionTitle('Available Mentors'),
-                      const SizedBox(height: 16),
-                      _buildMentorList(),
-                    ]),
-                  ),
+    final authState = ref.watch(authProvider);
+    final student = authState.student;
+    final displayName = authState.loginName.isNotEmpty 
+        ? authState.loginName 
+        : (student?.name ?? 'Student');
+
+    return Scaffold(
+      backgroundColor: AppColors.bgPage,
+      appBar: CustomAppBar(
+        title: 'Student Dashboard',
+        showBackButton: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: CircleAvatar(
+              radius: 14,
+              backgroundImage: NetworkImage(student?.photoUrl ?? 'https://i.pravatar.cc/150'),
+            ),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Section
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hello, $displayName! ✨',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                  ).animate().fadeIn().slideX(begin: -0.1),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Ready to accelerate your career today?',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  ).animate().fadeIn(delay: 100.ms),
+                ],
+              ),
+            ),
+
+            // Live Session Card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))
+                  ],
                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.sensors_rounded, color: Colors.white, size: 24),
+                        SizedBox(width: 12),
+                        Text('Join Live Lab', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Enter the unique Room ID provided for your interactive session.',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: TextField(
+                        controller: _roomIdController,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        decoration: const InputDecoration(
+                          hintText: "e.g. system-design-101",
+                          hintStyle: TextStyle(color: Colors.white54),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _joinSession(_roomIdController.text),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        child: const Text('Connect to Classroom', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
+
+            const SizedBox(height: 32),
+
+            // Active Webinars
+            legacy_provider.Consumer<legacy_mentorship.MentorshipProvider>(
+              builder: (context, provider, _) {
+                final sessions = provider.webinars;
+                if (sessions.isEmpty) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Live Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 16),
+                      ...sessions.map((s) => _buildLiveRoomCard(context, s)),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            // Mentor List (Static Data)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Text('Top Mentors', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 16),
+            ref.watch(alumniListProvider).when(
+              data: (mentors) => ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: mentors.length > 8 ? 8 : mentors.length,
+                itemBuilder: (context, i) {
+                  final m = mentors[i];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgCard,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundImage: NetworkImage(m.photoUrl.isNotEmpty ? m.photoUrl : 'https://i.pravatar.cc/150?u=$i'),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(m.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                              Text('${m.role} @ ${m.company}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('Online', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w800, fontSize: 10)),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: Duration(milliseconds: 300 + (i * 50)));
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(child: Text('Error: $err')),
+            ),
+
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showJoinClassDialog(context),
+        backgroundColor: AppColors.secondary,
+        icon: const Icon(Icons.cast_connected_rounded, color: Colors.white),
+        label: const Text('Join by ID', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+      ).animate().fadeIn(delay: 800.ms),
+    );
+  }
+
+  Widget _buildLiveRoomCard(BuildContext context, Map<String, dynamic> room) {
+    final title = room['title'] ?? 'Untitled Class';
+    final attendees = room['attendees'] ?? 0;
+    final roomId = room['id'] ?? title.toLowerCase().replaceAll(' ', '-');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.error.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: AppColors.error.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.sensors_rounded, color: AppColors.error, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                Text('$attendees participating now', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
           ),
-          Positioned(
-            right: 16,
-            bottom: 100, // Adjusted to be above the floating navbar
-            child: _buildFAB(context),
+          ElevatedButton(
+            onPressed: () {
+              final isBroadcast = roomId.toString().startsWith('brd-');
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (context) => isBroadcast 
+                    ? BroadcastStreamingPage(streamId: roomId)
+                    : InteractiveClassroomPage(roomId: roomId),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            child: const Text('JOIN'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => _showJoinClassDialog(context),
-      backgroundColor: Colors.blueAccent,
-      icon: const Icon(Icons.sensors, color: Colors.white),
-      label: const Text(
-        "Join Live Class",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
   void _showJoinClassDialog(BuildContext context) {
     final TextEditingController dialogController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Join Live Class"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              "Enter the class room name provided by your mentor.",
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: dialogController,
-              decoration: const InputDecoration(
-                hintText: "Enter room name",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.room_outlined),
-              ),
-              autofocus: true,
-            ),
-          ],
+        title: const Text("Join Session"),
+        content: TextField(
+          controller: dialogController,
+          decoration: const InputDecoration(hintText: "Enter room ID", border: OutlineInputBorder()),
+          autofocus: true,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
-              final roomId = dialogController.text
-                  .trim()
-                  .toLowerCase()
-                  .replaceAll(' ', '-');
-              if (roomId.isNotEmpty) {
-                Navigator.pop(context);
-                Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        InteractiveClassroomPage(roomId: roomId),
-                  ),
-                );
-              }
+              Navigator.pop(context);
+              _joinSession(dialogController.text);
             },
             child: const Text("Join Now"),
           ),
@@ -173,355 +328,5 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     );
   }
-
-  Widget _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 80.0,
-      floating: true,
-      pinned: true,
-      backgroundColor: Colors.white.withOpacity(0.9),
-      elevation: 0,
-      surfaceTintColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          "Student Portal",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: false,
-        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
-          onPressed: () {},
-        ),
-        InkWell(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Profile page coming soon")),
-            );
-          },
-          child: Container(
-            margin: const EdgeInsets.only(right: 20),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.person, color: Colors.blueAccent, size: 24),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGreeting() {
-    return Consumer<AuthProvider>(
-      builder: (context, auth, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Welcome, ${auth.userName.isNotEmpty ? auth.userName : 'Student'}!",
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Ready to learn something new today?",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJoinSessionCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blueAccent, Colors.blue.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.sensors, color: Colors.white, size: 24),
-              SizedBox(width: 12),
-              Text(
-                "Join Live Session",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            "Enter the Room ID provided by your mentor to join the interactive classroom.",
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              controller: _roomIdController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: "Enter room name (e.g. math-class-101)",
-                hintStyle: TextStyle(color: Colors.white60),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 15),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _joinSession,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.blueAccent,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                "Join Session Now",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLiveRoomsSection() {
-    return Consumer<MentorshipProvider>(
-      builder: (context, provider, _) {
-        final liveRooms = provider.webinars;
-        if (liveRooms.isEmpty) return const SizedBox.shrink();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Live Classroom Sessions'),
-            const SizedBox(height: 16),
-            ...liveRooms.map((room) => _buildLiveRoomCard(context, room)),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildLiveRoomCard(BuildContext context, Map<String, dynamic> room) {
-    final title = room['title'] ?? 'Untitled Class';
-    final attendees = room['attendees'] ?? 0;
-
-    final isLive = room['isLive'] ?? false;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isLive
-                ? Colors.redAccent.withOpacity(0.3)
-                : Colors.grey.withOpacity(0.2),
-            width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: isLive
-                ? Colors.redAccent.withOpacity(0.05)
-                : Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isLive
-                  ? Colors.redAccent.withOpacity(0.1)
-                  : Colors.grey.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(isLive ? Icons.sensors : Icons.sensors_off,
-                color: isLive ? Colors.redAccent : Colors.grey, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: isLive ? Colors.black : Colors.grey)),
-                Text(isLive ? "$attendees attending" : "Wait for host to start",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: isLive
-                ? () {
-                    final roomId = room['id'] ?? title.toLowerCase().replaceAll(' ', '-');
-                    final isBroadcast = roomId.toString().startsWith('brd-');
-                    
-                    Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                        builder: (context) => isBroadcast 
-                          ? BroadcastStreamingPage(streamId: roomId)
-                          : InteractiveClassroomPage(roomId: roomId),
-                      ),
-                    );
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLive ? Colors.redAccent : Colors.grey[300],
-              foregroundColor: isLive ? Colors.white : Colors.grey[600],
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              elevation: isLive ? 2 : 0,
-            ),
-            child: Text(isLive ? "JOIN LIVE" : "LOBBYING"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1A1A1A),
-      ),
-    );
-  }
-
-  Widget _buildMentorList() {
-    if (_isLoadingMentors) {
-      return const Center(
-          child: Padding(
-        padding: EdgeInsets.all(20.0),
-        child: CircularProgressIndicator(),
-      ));
-    }
-
-    if (_mentors.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Text("No mentors available at the moment.",
-              style: TextStyle(color: Colors.grey)),
-        ),
-      );
-    }
-
-    return Column(
-      children: _mentors.map((m) {
-        final name = m['name'] ?? 'Unknown Mentor';
-        final field = m['techField'] ?? m['field'] ?? 'Expert';
-        final availability = m['status'] ?? m['availability'] ?? 'Available';
-        final isOnline = availability.toString().toLowerCase() == 'online' ||
-            availability == 'Now';
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withOpacity(0.1)),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: Colors.blue.withOpacity(0.1),
-                child:
-                    Text(name[0], style: const TextStyle(color: Colors.blue)),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(field,
-                        style:
-                            TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isOnline
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  availability,
-                  style: TextStyle(
-                    color: isOnline ? Colors.green : Colors.grey[600],
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
 }
+

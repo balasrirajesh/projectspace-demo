@@ -5,12 +5,16 @@ import 'package:graduway/data/models/models.dart';
 import 'package:graduway/data/models/student_model.dart';
 import 'package:graduway/models/user_role.dart';
 import 'package:graduway/shared/services/api_service.dart';
+import 'package:graduway/data/models/roadmap_item.dart';
+import 'package:graduway/data/repositories/roadmap_repository.dart';
+import 'package:graduway/data/repositories/mock_data_repository.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Services
 // ─────────────────────────────────────────────────────────────────────────────
 
 final apiServiceProvider = Provider((ref) => ApiService());
+final roadmapRepositoryProvider = Provider((ref) => RoadmapRepository(ref.watch(apiServiceProvider)));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth State
@@ -371,7 +375,8 @@ final careerScoreProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 
 final qaProvider = FutureProvider<List<QAModel>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchQA();
+  // Always return mock data for now as per user request
+  return MockDataRepository.getQA();
 });
 
 final trendingQAProvider = Provider<List<QAModel>>((ref) {
@@ -392,27 +397,27 @@ final alumniSearchProvider = StateProvider<String>((ref) => '');
 final selectedBranchProvider = StateProvider<String>((ref) => 'All');
 
 final alumniListProvider = FutureProvider<List<AlumniModel>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchAlumni();
+  return MockDataRepository.getAlumni();
 });
 
 final studentListProvider = FutureProvider<List<StudentModel>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchStudents();
+  return MockDataRepository.getStudents();
 });
 
 final placementStoriesProvider = FutureProvider<List<dynamic>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchPlacementStories();
+  return MockDataRepository.getPlacementStories();
 });
 
 final skillPackageProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchSkillPackages();
+  return MockDataRepository.getSkillPackages();
 });
 
 final eventsProvider = FutureProvider<List<dynamic>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchEvents();
+  return MockDataRepository.getEvents();
 });
 
 final badgesProvider = FutureProvider<List<dynamic>>((ref) async {
-  return ref.watch(apiServiceProvider).fetchBadges();
+  return MockDataRepository.getBadges();
 });
 
 final searchedAlumniProvider = Provider<List<AlumniModel>>((ref) {
@@ -435,6 +440,11 @@ final searchedAlumniProvider = Provider<List<AlumniModel>>((ref) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 final careerGoalProvider = StateProvider<String>((ref) => '');
+
+final roadmapDataProvider = FutureProvider<List<RoadmapItem>>((ref) async {
+  final goal = ref.watch(careerGoalProvider);
+  return ref.watch(roadmapRepositoryProvider).getRoadmap(goal);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation tab index per role

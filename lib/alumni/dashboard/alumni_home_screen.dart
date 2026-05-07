@@ -7,7 +7,6 @@ import 'package:provider/provider.dart' as legacy_provider;
 import 'package:graduway/providers/app_providers.dart';
 import 'package:graduway/theme/app_colors.dart';
 import 'package:graduway/widgets/custom_app_bar.dart';
-import 'package:graduway/data/models/models.dart';
 import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 import 'package:graduway/alumni/shared/providers/mentorship_provider.dart';
 import 'package:graduway/alumni/mentorship/alumni_requests_page.dart';
@@ -44,230 +43,262 @@ class AlumniHomeScreen extends ConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.only(bottom: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Welcome back,\n${displayName.split(' ').first}! 👋',
-              style: Theme.of(context)
-                  .textTheme
-                  .displaySmall
-                  ?.copyWith(fontSize: 24),
-            ).animate().fadeIn().slideX(begin: -0.1),
-            const SizedBox(height: 8),
-            Text(
-              '${alumni?.role ?? "SDE"} @ ${alumni?.company ?? "Aditya College"}',
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-            ).animate().fadeIn(delay: 200.ms),
-
-            const SizedBox(height: 28),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,\n${displayName.split(' ').first}! 👋',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                  ).animate().fadeIn().slideX(begin: -0.1),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${alumni?.role ?? "SDE"} @ ${alumni?.company ?? "Aditya College"}',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                  ).animate().fadeIn(delay: 200.ms),
+                ],
+              ),
+            ),
 
             // Impact Stats
-            const Text('Your Impact',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Your Platform Impact',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                _ImpactCard(
-                    label: 'Mentees',
-                    value: '${alumni?.menteeCount ?? 0}',
-                    icon: Icons.people_outline,
-                    color: AppColors.primary),
-                const SizedBox(width: 12),
-                _ImpactCard(
-                    label: 'Answers',
-                    value: '42',
-                    icon: Icons.question_answer_outlined,
-                    color: AppColors.alumni),
-                const SizedBox(width: 12),
-                _ImpactCard(
-                    label: 'Views',
-                    value: '1.2k',
-                    icon: Icons.remove_red_eye_outlined,
-                    color: AppColors.secondary),
-              ],
-            )
-                .animate()
-                .fadeIn(delay: 400.ms)
-                .scale(begin: const Offset(0.9, 0.9)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  _ImpactCard(
+                      label: 'Mentees',
+                      value: '${alumni?.menteeCount ?? 12}',
+                      icon: Icons.people_outline,
+                      color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  _ImpactCard(
+                      label: 'Answers',
+                      value: '42',
+                      icon: Icons.forum_rounded,
+                      color: AppColors.alumni),
+                  const SizedBox(width: 12),
+                  _ImpactCard(
+                      label: 'Points',
+                      value: '1.2k',
+                      icon: Icons.auto_awesome_rounded,
+                      color: AppColors.secondary),
+                ],
+              ),
+            ).animate().fadeIn(delay: 400.ms).scale(begin: const Offset(0.9, 0.9)),
 
             const SizedBox(height: 32),
 
-            // Pending Questions Call to Action
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppColors.alumniGradient,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                      color: AppColors.alumni.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10))
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Help a Student!',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'There are $unansweredCount pending questions in your expertise.',
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 13),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            ref.read(alumniNavIndexProvider.notifier).state =
-                                1; // Go to Questions tab
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.alumni,
-                            minimumSize: const Size(120, 40),
+            // Trending Student Questions Section
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Questions for You',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 160,
+              child: ref.watch(qaProvider).when(
+                data: (questions) => ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: questions.length.clamp(0, 5),
+                  itemBuilder: (context, i) {
+                    final q = questions[i];
+                    return Container(
+                      width: 280,
+                      margin: const EdgeInsets.only(right: 14),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgCard,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: AppColors.cardShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                child: const Text('❓', style: TextStyle(fontSize: 10)),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(q.askedBy, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            ],
                           ),
-                          child: const Text('View Questions'),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: Text(
+                              q.question,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, height: 1.3),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text('TAP TO ANSWER →', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.alumni)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const SizedBox(),
+              ),
+            ).animate().fadeIn(delay: 500.ms),
+
+            const SizedBox(height: 32),
+
+            const SizedBox(height: 32),
+
+            // ── Student Branch: Mentor Console ─────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Mentor Console',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: legacy_provider.Consumer<MentorshipProvider>(
+                builder: (context, mentorship, _) => Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MentorStatCard(
+                            title: 'Mentees Guided',
+                            value: '${mentorship.acceptedCount}',
+                            icon: Icons.people_outline,
+                            color: Colors.blue,
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const MenteesPage(initialShowActive: false))),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _MentorStatCard(
+                            title: 'Sessions Held',
+                            value: '45',
+                            icon: Icons.event_available_outlined,
+                            color: Colors.green,
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const SessionsPage())),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const Icon(Icons.psychology_outlined,
-                      size: 80, color: Colors.white24),
-                ],
-              ),
-            ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2),
-
-            const SizedBox(height: 32),
-
-            const Text('Quick Actions',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            _QuickActionTile(
-              icon: Icons.edit_note_rounded,
-              title: 'Post a Placement Tip',
-              subtitle: 'Share your interview secrets',
-              color: AppColors.admin,
-              onTap: () => _showPostTipSheet(context),
-            ),
-            const SizedBox(height: 12),
-            _QuickActionTile(
-              icon: Icons.calendar_month_rounded,
-              title: 'Host a Webinar',
-              subtitle: 'Schedule a session with juniors',
-              color: AppColors.alumni,
-              onTap: () => _showHostWebinarSheet(context),
-            ),
-
-            const SizedBox(height: 32),
-
-            // ── Rajesh: Mentor Console ─────────────────────────────────
-            const Text('Mentor Console',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            legacy_provider.Consumer<MentorshipProvider>(
-              builder: (context, mentorship, _) => Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MentorStatCard(
-                          title: 'Mentees Guided',
-                          value: '${mentorship.acceptedCount}',
-                          icon: Icons.people_outline,
-                          color: Colors.blue,
-                          onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const MenteesPage(initialShowActive: false))),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MentorStatCard(
+                            title: 'Active Mentees',
+                            value: '${mentorship.acceptedCount}',
+                            icon: Icons.school_outlined,
+                            color: Colors.orange,
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const MenteesPage())),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MentorStatCard(
-                          title: 'Sessions Held',
-                          value: '45',
-                          icon: Icons.event_available_outlined,
-                          color: Colors.green,
-                          onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const SessionsPage())),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _MentorStatCard(
+                            title: 'Queries',
+                            value: '3',
+                            icon: Icons.question_answer_outlined,
+                            color: Colors.purple,
+                            onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const rajesh_notif.NotificationsPage())),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _MentorActionBtn(title: 'Requests', icon: Icons.pending_actions, color: Colors.teal, hasNotif: true,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniRequestsPage()))),
+                          const SizedBox(width: 12),
+                          _MentorActionBtn(
+                            title: 'Go Live',
+                            icon: Icons.sensors,
+                            color: Colors.redAccent,
+                            onTap: () async {
+                              final title = await _showStreamTitleDialog(context);
+                              if (title != null && title.isNotEmpty) {
+                                final mentorship = legacy_provider.Provider.of<MentorshipProvider>(context, listen: false);
+                                final streamId = 'brd-${title.toLowerCase().replaceAll(' ', '-')}';
+                                final success = await mentorship.startNewWebinar(title, streamId: streamId);
+                                if (success && context.mounted) {
+                                  Navigator.of(context, rootNavigator: true).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => BroadcastStreamingPage(
+                                        streamId: streamId,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _MentorActionBtn(title: 'Mentees', icon: Icons.group, color: Colors.indigo,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MenteesPage()))),
+                          const SizedBox(width: 12),
+                          _MentorActionBtn(title: 'History', icon: Icons.history_rounded, color: Colors.green,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SessionsPage()))),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MentorStatCard(
-                          title: 'Active Mentees',
-                          value: '${mentorship.acceptedCount}',
-                          icon: Icons.school_outlined,
-                          color: Colors.orange,
-                          onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const MenteesPage())),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MentorStatCard(
-                          title: 'Unresolved Queries',
-                          value: '3',
-                          icon: Icons.question_answer_outlined,
-                          color: Colors.purple,
-                          onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const rajesh_notif.NotificationsPage())),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ).animate().fadeIn(delay: 700.ms),
 
-            const SizedBox(height: 24),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+            const SizedBox(height: 32),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Quick Actions',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
                 children: [
-                  _MentorActionBtn(title: 'Requests', icon: Icons.pending_actions, color: Colors.teal, hasNotif: true,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniRequestsPage()))),
-                  const SizedBox(width: 12),
-                  _MentorActionBtn(
-                    title: 'Start Stream',
-                    icon: Icons.sensors,
-                    color: Colors.redAccent,
-                    onTap: () async {
-                      final title = await _showStreamTitleDialog(context);
-                      if (title != null && title.isNotEmpty) {
-                        final mentorship = legacy_provider.Provider.of<MentorshipProvider>(context, listen: false);
-                        final streamId = 'brd-${title.toLowerCase().replaceAll(' ', '-')}';
-                        final success = await mentorship.startNewWebinar(title, streamId: streamId);
-                        if (success && context.mounted) {
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                              builder: (_) => BroadcastStreamingPage(
-                                streamId: streamId,
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    },
+                  _QuickActionTile(
+                    icon: Icons.edit_note_rounded,
+                    title: 'Post a Placement Tip',
+                    subtitle: 'Share your interview secrets',
+                    color: AppColors.admin,
+                    onTap: () => _showPostTipSheet(context),
                   ),
-                  const SizedBox(width: 12),
-                  _MentorActionBtn(title: 'My Mentees', icon: Icons.group, color: Colors.indigo,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MenteesPage()))),
-                  const SizedBox(width: 12),
-                  _MentorActionBtn(title: 'Sessions', icon: Icons.video_library_rounded, color: Colors.green,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SessionsPage()))),
+                  const SizedBox(height: 12),
+                  _QuickActionTile(
+                    icon: Icons.calendar_month_rounded,
+                    title: 'Host a Webinar',
+                    subtitle: 'Schedule a session with juniors',
+                    color: AppColors.alumni,
+                    onTap: () => _showHostWebinarSheet(context),
+                  ),
                 ],
               ),
             ).animate().fadeIn(delay: 800.ms),
@@ -349,7 +380,7 @@ class AlumniHomeScreen extends ConsumerWidget {
                     style:
                         TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
-              const SizedBox(height: 110),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -480,7 +511,7 @@ class AlumniHomeScreen extends ConsumerWidget {
                       style:
                           TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
-                const SizedBox(height: 110),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -683,4 +714,3 @@ class _MentorActionBtn extends StatelessWidget {
     );
   }
 }
-
