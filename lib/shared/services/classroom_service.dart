@@ -50,6 +50,10 @@ class ClassroomService {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
+      {'urls': 'stun:stun2.l.google.com:19302'},
+      {'urls': 'stun:stun3.l.google.com:19302'},
+      {'urls': 'stun:stun4.l.google.com:19302'},
+      {'urls': 'stun:global.stun.twilio.com:3478?transport=udp'},
       {
         'urls': [
           'stun:openrelay.metered.ca:80',
@@ -61,7 +65,7 @@ class ClassroomService {
         'credential': 'openrelay'
       }
     ],
-    'sdpSemantics': 'unified-plan'
+    'sdpSemantics': 'unified-plan',
   };
 
   /// Main entry point to join a classroom or the global lobby.
@@ -330,8 +334,17 @@ class ClassroomService {
     dev.log('📩 [RTC] Offer from $fromName ($from)');
 
     final pc = await _createPeerConnection(from, localName);
-    await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
-    _remoteDescriptionsSet.add(from);
+    
+    // Safety check: if PC is in a closed state, recreate it
+    if (pc.signalingState == RTCSignalingState.RTCSignalingStateClosed) {
+      peerConnections.remove(from);
+      final newPc = await _createPeerConnection(from, localName);
+      await newPc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+      _remoteDescriptionsSet.add(from);
+    } else {
+      await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+      _remoteDescriptionsSet.add(from);
+    }
     
     // Process queued ICE candidates
     if (_iceQueues.containsKey(from)) {

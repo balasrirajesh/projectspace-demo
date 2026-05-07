@@ -265,6 +265,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         setState(() {
           _hasHost = true;
           _connectionState = "$hostLabel ($userName) Joined! Connecting...";
+          _fatalError = null; // Clear any previous 'Session Ended' error
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
