@@ -162,8 +162,15 @@ class ClassroomService {
       
       participants.clear();
       participantMap.forEach((id, metadata) {
-        participants[id.toString()] = Map<String, String>.from((metadata as Map).map((key, value) => MapEntry(key.toString(), value.toString())));
+        final Map<String, String> meta = Map<String, String>.from(
+            (metadata as Map).map((key, value) => MapEntry(key.toString(), value.toString())));
+        participants[id.toString()] = meta;
+
         if (id != _socket!.id) {
+          final role = meta['role'];
+          if (role == 'mentor' || role == 'admin') {
+            onMentorJoined?.call(id.toString(), meta['userName'] ?? 'Host', role: role);
+          }
           _createOffer(id.toString(), userName);
         }
       });
