@@ -69,6 +69,24 @@ class ClassroomService {
     'sdpSemantics': 'unified-plan',
   };
 
+  void _startHandshakeWatchdog() {
+    // Every 10 seconds, check if we have participants without streams
+    Future.delayed(const Duration(seconds: 10), () async {
+      if (_socket == null || !_socket!.connected) return;
+
+      for (var entry in participants.entries) {
+        final id = entry.key;
+        if (id == _socket!.id) continue;
+
+        if (!remoteStreams.containsKey(id)) {
+          dev.log('🐕 [RTC] Watchdog: No stream for $id (${entry.value['userName']}). Re-initiating offer...');
+          await _createOffer(id, participants[_socket!.id]?['userName'] ?? 'User');
+        }
+      }
+      _startHandshakeWatchdog();
+    });
+  }
+
   /// Main entry point to join a classroom or the global lobby.
   Future<void> joinRoom({
     required String serverUrl,
@@ -135,6 +153,7 @@ class ClassroomService {
     _socket!.onConnect((_) {
       dev.log('✅ [SOCKET] Connected to signaling server');
       onConnected?.call();
+      _startHandshakeWatchdog();
       _socket!.emit('join-room', {
         'roomId': _roomId,
         'role': _role.name,

@@ -1046,7 +1046,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     }
 
-    // 2. Prepare participant list for sidebar/grid
+    // 2. Prepare participant list for sidebar/grid (Sync with REAL participants map)
     final allParticipants = [
       {
         'id': 'local',
@@ -1057,22 +1057,26 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 ? 'You (Faculty Host)'
                 : 'You (Alumni)'),
         'role': auth.role.name,
-        'isHost': !isStudent
+        'isHost': !isStudent,
+        'hasVideo': _classroomService.localStream != null,
       },
-      ..._remoteRenderers.entries.map((e) {
-        final meta = _classroomService.participants[e.key] ?? {};
+      ..._classroomService.participants.entries.map((e) {
+        final id = e.key;
+        final meta = e.value;
         final role = meta['role'] ?? 'student';
         final name = meta['userName'] ?? 'Participant';
         final isRemoteHost = (role == 'mentor' || role == 'admin');
+        final renderer = _remoteRenderers[id];
 
         return {
-          'id': e.key,
-          'renderer': e.value,
+          'id': id,
+          'renderer': renderer,
           'name': isRemoteHost
               ? (role == 'admin' ? 'Faculty: $name' : 'Alumni: $name')
               : name,
           'role': role,
-          'isHost': isRemoteHost
+          'isHost': isRemoteHost,
+          'hasVideo': renderer != null && renderer.srcObject != null,
         };
       }),
     ];
@@ -1166,27 +1170,37 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         borderRadius: BorderRadius.circular(22),
         child: Stack(
           children: [
-            if (p['renderer'].srcObject != null)
+            if (hasVideo && renderer != null)
               RTCVideoView(
-                p['renderer'] as RTCVideoRenderer,
+                renderer,
                 objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                mirror: p['id'] == 'local',
+                mirror: id == 'local',
               )
             else
               Container(
-                color: Colors.black87,
+                color: Colors.black.withOpacity(0.4),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.videocam_off,
-                          color: Colors.white24, size: 30),
-                      const SizedBox(height: 8),
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: Colors.white.withOpacity(0.08),
+                        child: Text(
+                          p['name'].toString().substring(0, 1).toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        p['name'] as String,
+                        hasVideo ? "Connecting..." : "Waiting for Video...",
                         style: const TextStyle(
-                            color: Colors.white24, fontSize: 10),
-                        textAlign: TextAlign.center,
+                            color: Colors.white38,
+                            fontSize: 10,
+                            letterSpacing: 1),
                       ),
                     ],
                   ),
