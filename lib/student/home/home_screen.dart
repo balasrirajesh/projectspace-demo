@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:graduway/theme/app_colors.dart';
 import 'package:graduway/providers/app_providers.dart';
@@ -11,6 +10,7 @@ import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 import 'package:graduway/widgets/interactive_classroom_page.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:graduway/alumni/shared/providers/mentorship_provider.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -136,7 +136,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SizedBox(height: 24),
 
-            // ── Rajesh: Join Live Session Card ──────────────────────────
+            // ── Student Branch: Join Live Session Card ──────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -217,7 +217,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SizedBox(height: 32),
 
-            // ── Rajesh: Live Classes List ──────────────────────────────────
+            // ── Student Branch: Live Classes List ──────────────────────────────────
             legacy.Consumer<MentorshipProvider>(
               builder: (context, provider, _) {
                 final sessions = provider.webinars;

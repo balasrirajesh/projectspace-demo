@@ -138,4 +138,16 @@ class ApiService {
       return false;
     }
   }
+
+  Future<List<dynamic>> fetchRoadmap(String goal) async {
+    try {
+      final response = await http.get(Uri.parse('${_baseUrl}roadmap?goal=$goal'));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+    } catch (e) {
+      debugPrint('Error fetching roadmap: $e');
+    }
+    return [];
+  }
 }
