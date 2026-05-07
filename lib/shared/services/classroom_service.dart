@@ -44,6 +44,7 @@ class ClassroomService {
   Function(Map<String, dynamic> data)? onAnnouncementReceived;
   Function(bool canAccessMic, bool canAccessVideo, bool canShareScreen)? onPermissionUpdate;
   Function(String socketId, bool isSharing)? onRemoteScreenShareUpdated;
+  Function()? onParticipantsChanged; // Added to notify UI of participant list changes
 
   // Robust WebRTC Configuration using STUN & Free TURN for NAT Traversal
   final Map<String, dynamic> _rtcConfig = {
@@ -159,22 +160,10 @@ class ClassroomService {
       dev.log('👥 [RTC] Discovering participants: $data');
       final Map<dynamic, dynamic> participantMap = data as Map;
       
+      participants.clear();
       participantMap.forEach((id, metadata) {
+        participants[id.toString()] = Map<String, String>.from((metadata as Map).map((key, value) => MapEntry(key.toString(), value.toString())));
         if (id != _socket!.id) {
-          final Map<String, String> meta = {};
-          if (metadata is Map) {
-            metadata.forEach((key, value) {
-              meta[key.toString()] = value.toString();
-            });
-          }
-          participants[id.toString()] = meta;
-          
-          final role = meta['role'];
-          if (role == 'mentor' || role == 'admin') {
-            onMentorJoined?.call(id.toString(), meta['userName'] ?? 'Host', role: role);
-          }
-
-          // MESH RULE: Joiner initiates to established members
           _createOffer(id.toString(), userName);
         }
       });
@@ -401,11 +390,13 @@ class ClassroomService {
   void _removePeer(String id) {
     peerConnections[id]?.close();
     peerConnections.remove(id);
+    participants.remove(id); // Ensure we remove from metadata map too
     _remoteDescriptionsSet.remove(id);
     remoteStreams.remove(id);
     remoteScreenStreams.remove(id);
     onRemoteStreamRemoved?.call(id);
     onRemoteScreenStreamRemoved?.call(id);
+    onParticipantsChanged?.call();
   }
 
   // --- UI Actions ---
@@ -543,47 +534,54 @@ class ClassroomService {
 
   Future<void> startLocalStream() async {
     try {
-      final camStatus = await Permission.camera.request();
-      final micStatus = await Permission.microphone.request();
+      if (!kIsWeb) {
+        final camStatus = await Permission.camera.request();
+        final micStatus = await Permission.microphone.request();
 
-      if (camStatus == PermissionStatus.granted && micStatus == PermissionStatus.granted) {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          'audio': true,
-          'video': {
-            'facingMode': 'user',
-            'width': 640,
-            'height': 480,
-          }
-        });
+        if (camStatus != PermissionStatus.granted || micStatus != PermissionStatus.granted) {
+          dev.log('❌ [RTC] Media permissions denied on native');
+          return;
+        }
+      }
+
+      // On Web, navigator.mediaDevices.getUserMedia will trigger the browser prompt automatically.
+      localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': {
+          'facingMode': 'user',
+          'width': 640,
+          'height': 480,
+        }
+      });
+      
+      // Add tracks to existing peer connections AND renegotiate
+      for (var entry in peerConnections.entries) {
+        final id = entry.key;
+        final pc = entry.value;
         
-        // Add tracks to existing peer connections AND renegotiate
-        for (var entry in peerConnections.entries) {
-          final id = entry.key;
-          final pc = entry.value;
-          
-          // Only add tracks if they aren't already there
-          final senders = await pc.getSenders();
-          for (var track in localStream!.getTracks()) {
-            bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
-            if (!alreadyAdded) {
-              await pc.addTrack(track, localStream!);
-            }
+        // Only add tracks if they aren't already there
+        final senders = await pc.getSenders();
+        for (var track in localStream!.getTracks()) {
+          bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
+          if (!alreadyAdded) {
+            await pc.addTrack(track, localStream!);
           }
-          
-          // Renegotiate
-          RTCSessionDescription offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          _socket!.emit('offer', {
-            'target': id,
-            'offer': offer.toMap(),
-            'fromName': 'Participant',
-          });
         }
         
-        dev.log('📹 [RTC] Local stream started and renegotiated with ${peerConnections.length} peers');
+        // Renegotiate
+        RTCSessionDescription offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        _socket!.emit('offer', {
+          'target': id,
+          'offer': offer.toMap(),
+          'fromName': 'Participant',
+        });
       }
+      
+      dev.log('📹 [RTC] Local stream started and renegotiated with ${peerConnections.length} peers');
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
+      // Rethrow to allow UI to handle or ignore, but don't crash
     }
   }
 

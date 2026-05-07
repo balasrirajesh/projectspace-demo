@@ -218,6 +218,12 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
+    _classroomService.onParticipantsChanged = () {
+      if (mounted) {
+        setState(() {}); // Refresh UI when anyone joins or leaves
+      }
+    };
+
     _classroomService.onPermissionUpdate = (mic, video, screenShare) async {
       if (mounted) {
         setState(() {
@@ -768,18 +774,20 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         final auth = context.read<AuthProvider>();
         final attendees = [
           {
+            'id': 'local',
             'name': auth.userName,
             'role': auth.role == UserRole.student
                 ? 'Student'
                 : (auth.role == UserRole.admin ? 'Faculty' : 'Alumnus'),
             'isMe': true
           },
-          ..._remoteRenderers.entries.map((e) {
-            final name = _classroomService.participants[e.key]?['userName'] ?? 'Participant';
+          ..._classroomService.participants.entries.map((e) {
+            final name = e.value['userName'] ?? 'Participant';
+            final role = e.value['role'] == 'mentor' ? 'Member' : 'Student';
             return {
               'id': e.key,
               'name': name,
-              'role': 'Member',
+              'role': role,
               'isMe': false
             };
           })
