@@ -27,8 +27,9 @@ class ClassroomService {
   MediaStream? localScreenStream; // Added for screen sharing
   final Map<String, RTCPeerConnection> peerConnections = {};
   final Map<String, MediaStream> remoteStreams = {};
-  final Map<String, MediaStream> remoteScreenStreams = {}; // Added for remote screen shares
-  final Map<String, Map<String, String>> participants = {}; // socketId -> { role, userName }
+  final Map<String, MediaStream> remoteScreenStreams = {}; 
+  final Map<String, Map<String, String>> participants = {}; 
+  final Map<String, List<RTCIceCandidate>> _iceQueues = {}; // Queue for candidates arriving before remote description
 
   // Handlers for the UI
   Function(String participantId, MediaStream stream)? onRemoteStreamAdded;
@@ -225,20 +226,23 @@ class ClassroomService {
   // --- WebRTC Core ---
 
   Future<RTCPeerConnection> _createPeerConnection(String remoteId, String localName) async {
+    if (peerConnections.containsKey(remoteId)) {
+      return peerConnections[remoteId]!;
+    }
+
     RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
     peerConnections[remoteId] = pc;
 
     // Unified Plan: Ensure we can receive media even if not sending yet.
-    // This creates the necessary m-lines in the SDP.
-    await pc.addTransceiver(
-        kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
-        init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
-    await pc.addTransceiver(
-        kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
-        init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
-
-    // SAFE TRACK ADDITION: Only add if media is actually active
-    if (localStream != null) {
+    // We only add transceivers if we aren't already sending tracks.
+    if (localStream == null) {
+      await pc.addTransceiver(
+          kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
+      await pc.addTransceiver(
+          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
+    } else {
       for (var track in localStream!.getTracks()) {
         pc.addTrack(track, localStream!);
       }
@@ -253,26 +257,26 @@ class ClassroomService {
     };
 
     pc.onTrack = (event) {
-      if (event.streams.isNotEmpty) {
-        final stream = event.streams[0];
-        
-        // Ensure we only trigger callbacks for NEW streams
-        if (remoteStreams[remoteId]?.id == stream.id || remoteScreenStreams[remoteId]?.id == stream.id) {
+      if (event.streams.isEmpty) return;
+      final stream = event.streams[0];
+      
+      // Robust detection: if we already have a stream for this peer,
+      // and this new track belongs to a DIFFERENT stream ID, it's likely screen share.
+      if (remoteStreams.containsKey(remoteId)) {
+        if (remoteStreams[remoteId]!.id == stream.id) {
+          // It's just a new track (e.g. video after audio) for the SAME camera stream.
           return;
         }
+        
+        if (remoteScreenStreams[remoteId]?.id == stream.id) return;
 
-        // Logic to distinguish screen share: 
-        // If we already have a remoteStream (camera) for this participant, 
-        // a second stream arriving is likely the screen share.
-        if (remoteStreams.containsKey(remoteId)) {
-          remoteScreenStreams[remoteId] = stream;
-          onRemoteScreenStreamAdded?.call(remoteId, stream);
-        } else {
-          remoteStreams[remoteId] = stream;
-          onRemoteStreamAdded?.call(remoteId, stream);
-        }
+        dev.log('🖥️ [RTC] Remote screen share stream detected for $remoteId');
+        remoteScreenStreams[remoteId] = stream;
+        onRemoteScreenStreamAdded?.call(remoteId, stream);
       } else {
-        _createFallbackStream(remoteId, event.track);
+        dev.log('📹 [RTC] Remote camera stream detected for $remoteId');
+        remoteStreams[remoteId] = stream;
+        onRemoteStreamAdded?.call(remoteId, stream);
       }
     };
 
@@ -327,10 +331,16 @@ class ClassroomService {
     final pc = await _createPeerConnection(from, localName);
     await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
     
-    RTCSessionDescription answer = await pc.createAnswer({
-      'offerToReceiveAudio': 1,
-      'offerToReceiveVideo': 1,
-    });
+    // Process queued ICE candidates
+    if (_iceQueues.containsKey(from)) {
+      dev.log('❄️ [RTC] Processing ${_iceQueues[from]!.length} queued ICE candidates for $from');
+      for (var candidate in _iceQueues[from]!) {
+        await pc.addCandidate(candidate);
+      }
+      _iceQueues.remove(from);
+    }
+
+    RTCSessionDescription answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
     _socket!.emit('answer', {
@@ -346,15 +356,29 @@ class ClassroomService {
     final pc = peerConnections[from];
     if (pc != null) {
       await pc.setRemoteDescription(RTCSessionDescription(data['answer']['sdp'], data['answer']['type']));
+      
+      // Process queued ICE candidates
+      if (_iceQueues.containsKey(from)) {
+        dev.log('❄️ [RTC] Processing ${_iceQueues[from]!.length} queued ICE candidates for $from');
+        for (var candidate in _iceQueues[from]!) {
+          await pc.addCandidate(candidate);
+        }
+        _iceQueues.remove(from);
+      }
     }
   }
 
   Future<void> _handleIceCandidate(dynamic data) async {
     final String from = data['from'].toString();
     final pc = peerConnections[from];
-    if (pc != null) {
-      await pc.addCandidate(RTCIceCandidate(
-          data['candidate']['candidate'], data['candidate']['sdpMid'], data['candidate']['sdpMLineIndex']));
+    final candidate = RTCIceCandidate(
+        data['candidate']['candidate'], data['candidate']['sdpMid'], data['candidate']['sdpMLineIndex']);
+
+    if (pc != null && pc.remoteDescription != null) {
+      await pc.addCandidate(candidate);
+    } else {
+      dev.log('❄️ [RTC] Queuing ICE candidate from $from (Remote description not yet set)');
+      _iceQueues.putIfAbsent(from, () => []).add(candidate);
     }
   }
 
@@ -520,20 +544,22 @@ class ClassroomService {
           final id = entry.key;
           final pc = entry.value;
           
+          // Only add tracks if they aren't already there
+          final senders = await pc.getSenders();
           for (var track in localStream!.getTracks()) {
-            pc.addTrack(track, localStream!);
+            bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
+            if (!alreadyAdded) {
+              await pc.addTrack(track, localStream!);
+            }
           }
           
-          // CRITICAL: Renegotiate so the other side knows we added tracks
-          RTCSessionDescription offer = await pc.createOffer({
-            'offerToReceiveAudio': 1,
-            'offerToReceiveVideo': 1,
-          });
+          // Renegotiate
+          RTCSessionDescription offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           _socket!.emit('offer', {
             'target': id,
             'offer': offer.toMap(),
-            'fromName': 'Participant', // Usually the UI provides this
+            'fromName': 'Participant',
           });
         }
         
