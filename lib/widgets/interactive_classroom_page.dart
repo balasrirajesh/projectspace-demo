@@ -1142,8 +1142,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   Widget _buildParticipantTile(Map<String, dynamic> p) {
+    final id = p['id'] as String;
+    final hasVideo = p['hasVideo'] == true;
+    final renderer = p['renderer'] as RTCVideoRenderer?;
     final isHost = p['isHost'] == true;
-    final isHandRaised = (p['id'] == 'local' && _isLocalHandRaised) ||
+    final isHandRaised = (id == 'local' && _isLocalHandRaised) ||
         _raisedHands.contains(p['name']);
 
     return Container(
