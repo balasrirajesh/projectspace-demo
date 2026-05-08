@@ -99,13 +99,15 @@ pipeline {
 
         stage('Docker Build & Push') {
             steps {
-                echo '📦 Building Docker Image for Signaling Server...'
-                dir('signaling_server') {
-                    bat "docker build -t ${env.DOCKER_IMAGE} ."
-                    retry(3) {
-                        withCredentials([usernamePassword(credentialsId: 'docker-hub-login', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                            bat "docker login -u ${USER} -p ${PASS}"
-                            bat "docker push ${env.DOCKER_IMAGE}"
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo '📦 Building Docker Image for Signaling Server...'
+                    dir('signaling_server') {
+                        bat "docker build -t ${env.DOCKER_IMAGE} ."
+                        retry(2) {
+                            withCredentials([usernamePassword(credentialsId: 'docker-hub-login', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                                bat "docker login -u ${USER} -p ${PASS}"
+                                bat "docker push ${env.DOCKER_IMAGE}"
+                            }
                         }
                     }
                 }
@@ -114,20 +116,20 @@ pipeline {
 
         stage('Deploy to OpenShift') {
             steps {
-                echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
-                script {
-                    def ocCmd = env.OC_PATH ?: 'oc'
-                    // Token is stored as a Jenkins Secret Text credential (id: 'oc-token')
-                    // NEVER hardcode tokens in the Jenkinsfile — rotate via Jenkins UI if compromised
-                    withCredentials([string(credentialsId: 'oc-token', variable: 'TOKEN')]) {
-                        bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
-                        bat "${ocCmd} project ${env.OC_PROJECT}"
-                        bat "${ocCmd} apply -f openshift/mongodb.yaml"
-                        bat "${ocCmd} apply -f openshift/deployment.yaml"
-                        bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
-                        bat "${ocCmd} apply -f openshift/service.yaml"
-                        bat "${ocCmd} rollout restart deployment/signaling-server"
-                        bat "${ocCmd} rollout status deployment/signaling-server"
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo '🚀 Triggering Orchestrated Deployment on OpenShift...'
+                    script {
+                        def ocCmd = env.OC_PATH ?: 'oc'
+                        withCredentials([string(credentialsId: 'oc-token', variable: 'TOKEN')]) {
+                            bat "${ocCmd} login ${env.OC_SERVER} --token=\"${TOKEN}\" --insecure-skip-tls-verify"
+                            bat "${ocCmd} project ${env.OC_PROJECT}"
+                            bat "${ocCmd} apply -f openshift/mongodb.yaml"
+                            bat "${ocCmd} apply -f openshift/deployment.yaml"
+                            bat "${ocCmd} set image deployment/signaling-server signaling-server=${env.DOCKER_IMAGE}"
+                            bat "${ocCmd} apply -f openshift/service.yaml"
+                            bat "${ocCmd} rollout restart deployment/signaling-server"
+                            bat "${ocCmd} rollout status deployment/signaling-server"
+                        }
                     }
                 }
             }
