@@ -189,16 +189,27 @@ class ClassroomService {
             (metadata as Map).map((key, value) => MapEntry(key.toString(), value.toString())));
         participants[id.toString()] = meta;
 
-        if (id != _socket!.id) {
+        final myId = _socket!.id!;
+        final remoteId = id.toString();
+
+        if (remoteId != myId) {
           final role = meta['role'];
           if (role == 'mentor' || role == 'admin') {
-            onMentorJoined?.call(id.toString(), meta['userName'] ?? 'Host', role: role);
+            onMentorJoined?.call(remoteId, meta['userName'] ?? 'Host', role: role);
           }
-          _createOffer(id.toString(), userName);
+          
+          // --- Polite Peer Logic ---
+          // To avoid 'Glaring' (conflicting offers), only one peer should initiate.
+          // We use lexicographical comparison of socket IDs.
+          if (myId.compareTo(remoteId) < 0) {
+            dev.log('Initiating offer to $remoteId (I am the offerer)');
+            _createOffer(remoteId, userName);
+          } else {
+            dev.log('Waiting for offer from $remoteId (I am the politer peer)');
+          }
         }
       });
 
-      // Notify the UI to rebuild the grid now that participants map is ready.
       onParticipantsChanged?.call();
     });
 
@@ -260,16 +271,11 @@ class ClassroomService {
     RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
     peerConnections[remoteId] = pc;
 
-    // Unified Plan: Ensure we can receive media even if not sending yet.
-    // We only add transceivers if we aren't already sending tracks.
-    if (localStream == null) {
-      await pc.addTransceiver(
-          kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
-          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
-      await pc.addTransceiver(
-          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
-          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly));
-    } else {
+    // We no longer manually add transceivers here. 
+    // If we have a local stream, we add tracks.
+    // If we don't, setRemoteDescription will automatically create 
+    // the necessary transceivers based on the remote offer.
+    if (localStream != null) {
       for (var track in localStream!.getTracks()) {
         pc.addTrack(track, localStream!);
       }
@@ -568,11 +574,16 @@ class ClassroomService {
   }
 
   Future<void> startLocalStream() async {
+    if (localStream != null) {
+      dev.log('⚠️ [RTC] Local stream already exists, skipping initialization');
+      return;
+    }
+
     try {
+      // Small safety delay to ensure no other camera operations are pending
+      await Future.delayed(const Duration(milliseconds: 500));
+
       if (!kIsWeb) {
-        // Use .status (non-blocking) first to avoid showing an OS dialog
-        // that pauses the Android Activity and can drop the socket heartbeat.
-        // Only call .request() when the permission is not yet granted.
         var camStatus = await Permission.camera.status;
         var micStatus = await Permission.microphone.status;
 
@@ -584,12 +595,11 @@ class ClassroomService {
         }
 
         if (!camStatus.isGranted || !micStatus.isGranted) {
-          dev.log('❌ [RTC] Media permissions denied on native: cam=$camStatus mic=$micStatus');
+          dev.log('❌ [RTC] Media permissions denied: cam=$camStatus mic=$micStatus');
           return;
         }
       }
 
-      // On Web, navigator.mediaDevices.getUserMedia triggers the browser prompt.
       localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': {
@@ -599,7 +609,11 @@ class ClassroomService {
         }
       });
 
-      dev.log('📹 [RTC] Local stream acquired. Renegotiating with ${peerConnections.length} peers...');
+      if (localStream == null) {
+        throw Exception("Failed to acquire local media stream");
+      }
+
+      dev.log('✅ [RTC] Local stream acquired. Tracks: ${localStream!.getTracks().length}');
 
       // Add tracks to existing peer connections AND renegotiate.
       for (var entry in peerConnections.entries) {

@@ -70,16 +70,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     final auth = context.read<AuthProvider>();
 
-    // PRE-REQUEST OS permissions upfront so no system dialog appears later
-    // (i.e. when the alumni grants media access). A dialog mid-session on
-    // Android can pause the Activity, drop the socket heartbeat, and kick
-    // the student out.
-    if (!mounted) return;
-    if (auth.role == UserRole.student) {
-      // Students always need mic/camera even before permission is granted —
-      // request silently now so the OS remembers the answer.
-      await Permission.camera.request();
-      await Permission.microphone.request();
+    // Sync initial state from service
+    if (mounted) {
+      setState(() {
+        if (_classroomService.localStream != null) {
+          _localRenderer.srcObject = _classroomService.localStream;
+        }
+      });
     }
 
     _classroomService.onRemoteStreamAdded = (id, stream) async {
@@ -241,14 +238,14 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
+    _classroomService.onParticipantsChanged = () {
+      if (mounted) setState(() {});
+    };
+
     _classroomService.onPermissionUpdate = (mic, video, screenShare) {
-      // NOTE: This callback fires directly from a Socket.IO event dispatch.
-      // We must NOT call Permission.camera.request() or any async native API
-      // here directly — on Android it pauses the Activity which drops the
-      // socket heartbeat and kicks the student out.
-      // Instead, we store the permission state and defer ALL media work to
-      // the next frame via addPostFrameCallback.
       if (!mounted) return;
+
+      dev.log('🔐 [UI] Permission update received: mic=$mic video=$video');
 
       setState(() {
         _canAccessMic = mic;
@@ -256,7 +253,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         _canShareScreen = screenShare;
       });
 
-      // Show notification immediately so the student knows something happened.
+      // Show notification immediately
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -268,37 +265,35 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         ),
       );
 
-      // Defer the actual media start to the next frame so we are fully
-      // off the socket callback stack before any native dialog appears.
+      // Execute stream changes after a short delay to avoid rapid state transitions
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
 
-        if ((mic || video) && _classroomService.localStream == null) {
-          try {
-            await _classroomService.startLocalStream();
-          } catch (e) {
-            dev.log('❌ [RTC] Error starting local stream after permission grant: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Could not start camera/mic: $e'),
-                  backgroundColor: Colors.orange.shade800,
-                ),
-              );
-            }
-            return;
-          }
-          if (mounted) {
-            setState(() {
-              if (_classroomService.localStream != null) {
-                _localRenderer.srcObject = _classroomService.localStream;
+        if (mic || video) {
+          if (_classroomService.localStream == null) {
+            try {
+              await _classroomService.startLocalStream();
+              if (mounted && _classroomService.localStream != null) {
+                setState(() {
+                  _localRenderer.srcObject = _classroomService.localStream;
+                });
               }
-            });
+            } catch (e) {
+              dev.log('❌ [RTC] Failed to start stream: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not access camera/mic: $e'), backgroundColor: Colors.red),
+                );
+              }
+            }
           }
-        } else if (!mic && !video && _classroomService.localStream != null) {
-          _classroomService.stopLocalStream();
-          if (mounted) {
-            setState(() => _localRenderer.srcObject = null);
+        } else {
+          // Revoked
+          if (_classroomService.localStream != null) {
+            _classroomService.stopLocalStream();
+            if (mounted) {
+              setState(() => _localRenderer.srcObject = null);
+            }
           }
         }
       });
