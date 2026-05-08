@@ -756,9 +756,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   Widget _buildParticipantCount() {
-    // Use the participants map (truth from the signaling server) rather than
-    // _remoteRenderers, which only counts peers with an active stream.
-    final count = 1 + _classroomService.participants.length;
+    // Use the participants map (truth from the signaling server) but filter
+    // out our own socket ID \u2014 the server echoes us back in the list, so without
+    // this filter 1 alumni + 1 student = count 3 (self echoed once).
+    final remoteCount = _classroomService.participants.entries
+        .where((e) => e.key != _classroomService.mySocketId)
+        .length;
+    final count = 1 + remoteCount;
     return InkWell(
       onTap: _showAttendeesList,
       borderRadius: BorderRadius.circular(20),

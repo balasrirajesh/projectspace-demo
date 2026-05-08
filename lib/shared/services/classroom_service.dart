@@ -236,10 +236,29 @@ class ClassroomService {
       _removePeer(id);
     });
 
-    // Relay Listeners
-    _socket!.on('offer', (data) async => await _handleOffer(data, userName));
-    _socket!.on('answer', (data) async => await _handleAnswer(data));
-    _socket!.on('ice-candidate', (data) async => await _handleIceCandidate(data));
+    // Relay Listeners — all wrapped in try-catch so a WebRTC failure
+    // cannot become an unhandled Future rejection that crashes the Dart isolate.
+    _socket!.on('offer', (data) async {
+      try {
+        await _handleOffer(data, userName);
+      } catch (e) {
+        dev.log('❌ [RTC] Error handling offer: $e');
+      }
+    });
+    _socket!.on('answer', (data) async {
+      try {
+        await _handleAnswer(data);
+      } catch (e) {
+        dev.log('❌ [RTC] Error handling answer: $e');
+      }
+    });
+    _socket!.on('ice-candidate', (data) async {
+      try {
+        await _handleIceCandidate(data);
+      } catch (e) {
+        dev.log('❌ [RTC] Error handling ICE candidate: $e');
+      }
+    });
 
     // Global Events
     _socket!.on('mentor-left', (_) => onError?.call('The educational session has ended.'));
@@ -356,19 +375,25 @@ class ClassroomService {
       peerConnections.remove(targetId);
     }
 
-    final pc = await _createPeerConnection(targetId, localName);
-    RTCSessionDescription offer = await pc.createOffer({
-      'offerToReceiveAudio': 1,
-      'offerToReceiveVideo': 1,
-    });
-    await pc.setLocalDescription(offer);
-    dev.log('📤 [RTC] Offer sent to $targetId');
+    try {
+      final pc = await _createPeerConnection(targetId, localName);
+      RTCSessionDescription offer = await pc.createOffer({
+        'offerToReceiveAudio': 1,
+        'offerToReceiveVideo': 1,
+      });
+      await pc.setLocalDescription(offer);
+      dev.log('📤 [RTC] Offer sent to $targetId');
 
-    _socket!.emit('offer', {
-      'target': targetId,
-      'offer': offer.toMap(),
-      'fromName': localName,
-    });
+      _socket!.emit('offer', {
+        'target': targetId,
+        'offer': offer.toMap(),
+        'fromName': localName,
+      });
+    } catch (e) {
+      dev.log('❌ [RTC] Failed to create offer to $targetId: $e');
+      // Remove the broken PC so the watchdog can retry cleanly.
+      peerConnections.remove(targetId);
+    }
   }
 
   Future<void> _handleOffer(dynamic data, String localName) async {
@@ -694,7 +719,12 @@ class ClassroomService {
       dev.log('✅ [RTC] Local stream fully started and renegotiated');
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
-      rethrow; // Let the UI handler show a meaningful error, not a silent failure
+      // Do NOT rethrow here. A rethrow from an async function called inside
+      // addPostFrameCallback becomes an unhandled Future rejection on Android
+      // which crashes the Dart isolate ("GraduWay keeps stopping").
+      // Instead, surface the error through the UI callback.
+      localStream = null;
+      onError?.call('Could not access camera/mic: ${e.toString().split('\n').first}');
     }
   }
 
