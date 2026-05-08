@@ -153,17 +153,20 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
     }
     _timer?.cancel();
 
-    // Null out srcObject BEFORE disposing the renderer.
-    // This releases the browser's active lock on the camera/microphone hardware,
-    // turning off the camera indicator light immediately.
     _localRenderer.srcObject = null;
-
-    // Physically stop all tracks so the browser releases the device.
     _classroomService.stopLocalStream();
 
-    // Now safe to dispose the renderer and leave the signaling room.
     await _localRenderer.dispose();
-    _classroomService.dispose();
+
+    // Use leaveRoom() instead of dispose() — dispose() nukes the singleton and
+    // kills MentorshipProvider's global-lobby connection permanently.
+    await _classroomService.leaveRoom();
+
+    // Re-connect MentorshipProvider to global-lobby so room list stays live.
+    try {
+      final mentorship = context.read<MentorshipProvider>();
+      mentorship.reconnectLobby();
+    } catch (_) {}
   }
 
   void _addHeart() {

@@ -1145,9 +1145,6 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     // If no screen share, use the original grid with Alumni prominence
     if (screenShareWidget == null) {
-      // Find host to make them full screen if desired
-      final hostIndex = allParticipants.indexWhere((p) => p['isHost'] == true);
-      
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
