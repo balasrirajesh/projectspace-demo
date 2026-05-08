@@ -7,6 +7,7 @@ import 'package:graduway/shared/services/classroom_service.dart';
 import 'package:graduway/alumni/shared/providers/auth_provider.dart';
 import 'package:graduway/alumni/shared/providers/notification_provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:ui';
@@ -69,9 +70,25 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     final auth = context.read<AuthProvider>();
 
+    // PRE-REQUEST OS permissions upfront so no system dialog appears later
+    // (i.e. when the alumni grants media access). A dialog mid-session on
+    // Android can pause the Activity, drop the socket heartbeat, and kick
+    // the student out.
+    if (!mounted) return;
+    if (auth.role == UserRole.student) {
+      // Students always need mic/camera even before permission is granted —
+      // request silently now so the OS remembers the answer.
+      await Permission.camera.request();
+      await Permission.microphone.request();
+    }
+
     _classroomService.onRemoteStreamAdded = (id, stream) async {
       if (_remoteRenderers.containsKey(id)) {
+        // Re-assign srcObject so that when a video track is added to an
+        // already-registered stream (e.g. video track arrives after audio),
+        // the renderer picks it up and the UI rebuilds with hasVideo = true.
         _remoteRenderers[id]!.srcObject = stream;
+        if (mounted) setState(() {});
         return;
       }
       final renderer = RTCVideoRenderer();
@@ -731,7 +748,9 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   Widget _buildParticipantCount() {
-    final count = 1 + _remoteRenderers.length;
+    // Use the participants map (truth from the signaling server) rather than
+    // _remoteRenderers, which only counts peers with an active stream.
+    final count = 1 + _classroomService.participants.length;
     return InkWell(
       onTap: _showAttendeesList,
       borderRadius: BorderRadius.circular(20),
@@ -1082,25 +1101,38 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         'isHost': !isStudent,
         'hasVideo': _classroomService.localStream != null,
       },
-      ..._classroomService.participants.entries.map((e) {
-        final id = e.key;
-        final meta = e.value;
-        final role = meta['role'] ?? 'student';
-        final name = meta['userName'] ?? 'Participant';
-        final isRemoteHost = (role == 'mentor' || role == 'admin');
-        final renderer = _remoteRenderers[id];
+      ..._classroomService.participants.entries
+          // Filter out our OWN socket ID from the list. After a reconnect
+          // the server may still hold our previous socket ID, which would
+          // create a ghost tile labelled with our own name.
+          .where((e) => e.key != _classroomService.mySocketId)
+          // Also deduplicate: if the same userName appears twice (e.g. due
+          // to a brief reconnect with a new socket ID), keep only the first.
+          .fold<Map<String, MapEntry<String, Map<String, String>>>>({}, (acc, e) {
+            final name = e.value['userName'] ?? '';
+            if (!acc.containsKey(name)) acc[name] = e;
+            return acc;
+          })
+          .values
+          .map((e) {
+            final id = e.key;
+            final meta = e.value;
+            final role = meta['role'] ?? 'student';
+            final name = meta['userName'] ?? 'Participant';
+            final isRemoteHost = (role == 'mentor' || role == 'admin');
+            final renderer = _remoteRenderers[id];
 
-        return {
-          'id': id,
-          'renderer': renderer,
-          'name': isRemoteHost
-              ? (role == 'admin' ? 'Faculty: $name' : 'Alumni: $name')
-              : name,
-          'role': role,
-          'isHost': isRemoteHost,
-          'hasVideo': renderer != null && renderer.srcObject != null,
-        };
-      }),
+            return {
+              'id': id,
+              'renderer': renderer,
+              'name': isRemoteHost
+                  ? (role == 'admin' ? 'Faculty: $name' : 'Alumni: $name')
+                  : name,
+              'role': role,
+              'isHost': isRemoteHost,
+              'hasVideo': renderer != null && renderer.srcObject != null,
+            };
+          }),
     ];
 
     // If no screen share, use the original grid with Alumni prominence

@@ -22,6 +22,10 @@ class ClassroomService {
   String _roomId = '';
   ClassroomRole _role = ClassroomRole.student;
 
+  /// Exposes the current socket ID so the UI can filter out its own entry
+  /// from the participants map (avoids ghost self-tile after reconnect).
+  String? get mySocketId => _socket?.id;
+
   // WebRTC core objects
   MediaStream? localStream;
   MediaStream? localScreenStream; // Added for screen sharing
@@ -178,7 +182,7 @@ class ClassroomService {
     _socket!.on('participant-list', (data) async {
       dev.log('👥 [RTC] Discovering participants: $data');
       final Map<dynamic, dynamic> participantMap = data as Map;
-      
+
       participants.clear();
       participantMap.forEach((id, metadata) {
         final Map<String, String> meta = Map<String, String>.from(
@@ -193,6 +197,9 @@ class ClassroomService {
           _createOffer(id.toString(), userName);
         }
       });
+
+      // Notify the UI to rebuild the grid now that participants map is ready.
+      onParticipantsChanged?.call();
     });
 
     _socket!.on('participant-joined', (data) {
@@ -279,15 +286,17 @@ class ClassroomService {
     pc.onTrack = (event) {
       if (event.streams.isEmpty) return;
       final stream = event.streams[0];
-      
-      // Robust detection: if we already have a stream for this peer,
-      // and this new track belongs to a DIFFERENT stream ID, it's likely screen share.
+
       if (remoteStreams.containsKey(remoteId)) {
         if (remoteStreams[remoteId]!.id == stream.id) {
-          // It's just a new track (e.g. video after audio) for the SAME camera stream.
+          // Same camera stream — a new track (e.g. video after audio) has
+          // arrived. Re-fire the callback so the UI re-assigns srcObject on
+          // the renderer and picks up the new track.
+          dev.log('📹 [RTC] New track on existing stream for $remoteId — refreshing renderer');
+          onRemoteStreamAdded?.call(remoteId, stream);
           return;
         }
-        
+
         if (remoteScreenStreams[remoteId]?.id == stream.id) return;
 
         dev.log('🖥️ [RTC] Remote screen share stream detected for $remoteId');
