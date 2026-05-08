@@ -180,33 +180,27 @@ class ClassroomService {
     // --- Signaling Handshake (MESH Logic) ---
 
     _socket!.on('participant-list', (data) async {
-      dev.log('👥 [RTC] Discovering participants: $data');
+      dev.log('👥 [RTC] participant-list received: $data');
       final Map<dynamic, dynamic> participantMap = data as Map;
 
       participants.clear();
       participantMap.forEach((id, metadata) {
         final Map<String, String> meta = Map<String, String>.from(
             (metadata as Map).map((key, value) => MapEntry(key.toString(), value.toString())));
-        participants[id.toString()] = meta;
-
-        final myId = _socket!.id!;
         final remoteId = id.toString();
+        participants[remoteId] = meta;
 
-        if (remoteId != myId) {
+        if (remoteId != _socket!.id) {
           final role = meta['role'];
           if (role == 'mentor' || role == 'admin') {
             onMentorJoined?.call(remoteId, meta['userName'] ?? 'Host', role: role);
           }
-          
-          // --- Polite Peer Logic ---
-          // To avoid 'Glaring' (conflicting offers), only one peer should initiate.
-          // We use lexicographical comparison of socket IDs.
-          if (myId.compareTo(remoteId) < 0) {
-            dev.log('Initiating offer to $remoteId (I am the offerer)');
-            _createOffer(remoteId, userName);
-          } else {
-            dev.log('Waiting for offer from $remoteId (I am the politer peer)');
-          }
+          // The new joiner (us) ALWAYS creates offers to all existing participants.
+          // This is the correct MESH handshake — do NOT use polite-peer socket-ID
+          // comparison here, because the alumni's 'participant-joined' handler
+          // ALSO creates an offer back to us. Glare is handled in _handleOffer.
+          dev.log('📤 [RTC] Creating offer to existing participant $remoteId');
+          _createOffer(remoteId, userName);
         }
       });
 
@@ -216,16 +210,24 @@ class ClassroomService {
     _socket!.on('participant-joined', (data) {
       final id = data['socketId'].toString();
       dev.log('👋 [RTC] Participant entered: ${data['userName']} ($id)');
-      
+
       final Map<String, String> meta = {
         'role': data['role']?.toString() ?? 'student',
         'userName': data['userName']?.toString() ?? 'Anonymous'
       };
       participants[id] = meta;
-      
+      onParticipantsChanged?.call();
+
       if (meta['role'] == 'mentor' || meta['role'] == 'admin') {
         onMentorJoined?.call(id, meta['userName']!, role: meta['role']);
       }
+
+      // Existing participants ALSO create an offer to the new joiner.
+      // This ensures the two-way video flows even if the new joiner's
+      // own offer (from participant-list) is delayed or dropped.
+      // Glare between the two competing offers is resolved in _handleOffer.
+      dev.log('📤 [RTC] Creating offer to new joiner $id');
+      _createOffer(id, userName);
     });
 
     _socket!.on('participant-left', (id) {
@@ -344,12 +346,23 @@ class ClassroomService {
   }
 
   Future<void> _createOffer(String targetId, String localName) async {
+    // Guard: don't create a new offer if we already have a stable connection.
+    if (peerConnections.containsKey(targetId)) {
+      final existing = peerConnections[targetId]!;
+      if (existing.signalingState != RTCSignalingState.RTCSignalingStateClosed) {
+        dev.log('⚠️ [RTC] Offer skipped: already have active PC for $targetId (state: ${existing.signalingState})');
+        return;
+      }
+      peerConnections.remove(targetId);
+    }
+
     final pc = await _createPeerConnection(targetId, localName);
     RTCSessionDescription offer = await pc.createOffer({
       'offerToReceiveAudio': 1,
       'offerToReceiveVideo': 1,
     });
     await pc.setLocalDescription(offer);
+    dev.log('📤 [RTC] Offer sent to $targetId');
 
     _socket!.emit('offer', {
       'target': targetId,
@@ -361,32 +374,64 @@ class ClassroomService {
   Future<void> _handleOffer(dynamic data, String localName) async {
     final String from = data['from'].toString();
     final String fromName = data['fromName'] ?? 'Remote';
-    dev.log('📩 [RTC] Offer from $fromName ($from)');
+    dev.log('📩 [RTC] Offer received from $fromName ($from)');
 
     final pc = await _createPeerConnection(from, localName);
-    
-    // Safety check: if PC is in a closed state, recreate it
+
+    // --- W3C Glare (Collision) Handling ---
+    // Both sides may have created offers simultaneously. Detect this and
+    // resolve it so only one valid connection is established.
+    if (pc.signalingState == RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+      final myId = _socket?.id ?? '';
+      // The peer with the LARGER socket ID is 'polite' and rolls back.
+      // The peer with the SMALLER socket ID is 'impolite' and wins.
+      final isPolite = myId.compareTo(from) > 0;
+
+      if (isPolite) {
+        dev.log('🤝 [RTC] Glare detected — I am polite, rolling back my offer to accept theirs');
+        try {
+          await pc.setLocalDescription(RTCSessionDescription('', 'rollback'));
+        } catch (e) {
+          dev.log('❌ [RTC] Rollback failed: $e — recreating PC');
+          peerConnections.remove(from);
+          final newPc = await _createPeerConnection(from, localName);
+          await newPc.setRemoteDescription(
+              RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+          _remoteDescriptionsSet.add(from);
+          final answer = await newPc.createAnswer();
+          await newPc.setLocalDescription(answer);
+          _socket!.emit('answer', {'target': from, 'answer': answer.toMap(), 'fromName': localName});
+          return;
+        }
+      } else {
+        dev.log('👊 [RTC] Glare detected — I am impolite, ignoring their offer (my offer takes precedence)');
+        return; // Our offer will arrive at them; they will answer it.
+      }
+    }
+
+    // Handle closed PC
+    RTCPeerConnection activePc = pc;
     if (pc.signalingState == RTCSignalingState.RTCSignalingStateClosed) {
       peerConnections.remove(from);
-      final newPc = await _createPeerConnection(from, localName);
-      await newPc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
-      _remoteDescriptionsSet.add(from);
-    } else {
-      await pc.setRemoteDescription(RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
-      _remoteDescriptionsSet.add(from);
+      activePc = await _createPeerConnection(from, localName);
     }
-    
+
+    await activePc.setRemoteDescription(
+        RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
+    _remoteDescriptionsSet.add(from);
+
     // Process queued ICE candidates
     if (_iceQueues.containsKey(from)) {
-      dev.log('❄️ [RTC] Processing ${_iceQueues[from]!.length} queued ICE candidates for $from');
+      dev.log('❄️ [RTC] Flushing ${_iceQueues[from]!.length} queued ICE candidates for $from');
       for (var candidate in _iceQueues[from]!) {
-        await pc.addCandidate(candidate);
+        await activePc.addCandidate(candidate);
       }
       _iceQueues.remove(from);
     }
 
-    RTCSessionDescription answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    final answer = await activePc.createAnswer();
+    await activePc.setLocalDescription(answer);
+    dev.log('📤 [RTC] Answer sent to $from');
 
     _socket!.emit('answer', {
       'target': from,
