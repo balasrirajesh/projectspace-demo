@@ -561,16 +561,26 @@ class ClassroomService {
   Future<void> startLocalStream() async {
     try {
       if (!kIsWeb) {
-        final camStatus = await Permission.camera.request();
-        final micStatus = await Permission.microphone.request();
+        // Use .status (non-blocking) first to avoid showing an OS dialog
+        // that pauses the Android Activity and can drop the socket heartbeat.
+        // Only call .request() when the permission is not yet granted.
+        var camStatus = await Permission.camera.status;
+        var micStatus = await Permission.microphone.status;
 
-        if (camStatus != PermissionStatus.granted || micStatus != PermissionStatus.granted) {
-          dev.log('❌ [RTC] Media permissions denied on native');
+        if (!camStatus.isGranted) {
+          camStatus = await Permission.camera.request();
+        }
+        if (!micStatus.isGranted) {
+          micStatus = await Permission.microphone.request();
+        }
+
+        if (!camStatus.isGranted || !micStatus.isGranted) {
+          dev.log('❌ [RTC] Media permissions denied on native: cam=$camStatus mic=$micStatus');
           return;
         }
       }
 
-      // On Web, navigator.mediaDevices.getUserMedia will trigger the browser prompt automatically.
+      // On Web, navigator.mediaDevices.getUserMedia triggers the browser prompt.
       localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': {
@@ -579,13 +589,21 @@ class ClassroomService {
           'height': 480,
         }
       });
-      
-      // Add tracks to existing peer connections AND renegotiate
+
+      dev.log('📹 [RTC] Local stream acquired. Renegotiating with ${peerConnections.length} peers...');
+
+      // Add tracks to existing peer connections AND renegotiate.
       for (var entry in peerConnections.entries) {
         final id = entry.key;
         final pc = entry.value;
-        
-        // Only add tracks if they aren't already there
+
+        // Guard: socket may have disconnected during the getUserMedia call.
+        if (_socket == null || !_socket!.connected) {
+          dev.log('⚠️ [RTC] Socket disconnected during renegotiation for $id — skipping');
+          continue;
+        }
+
+        // Only add tracks if they aren't already there.
         final senders = await pc.getSenders();
         for (var track in localStream!.getTracks()) {
           bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
@@ -593,8 +611,8 @@ class ClassroomService {
             await pc.addTrack(track, localStream!);
           }
         }
-        
-        // Renegotiate
+
+        // Renegotiate.
         RTCSessionDescription offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         _socket!.emit('offer', {
@@ -602,12 +620,13 @@ class ClassroomService {
           'offer': offer.toMap(),
           'fromName': 'Participant',
         });
+        dev.log('📤 [RTC] Renegotiation offer sent to $id');
       }
-      
-      dev.log('📹 [RTC] Local stream started and renegotiated with ${peerConnections.length} peers');
+
+      dev.log('✅ [RTC] Local stream fully started and renegotiated');
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
-      // Rethrow to allow UI to handle or ignore, but don't crash
+      rethrow; // Let the UI handler show a meaningful error, not a silent failure
     }
   }
 

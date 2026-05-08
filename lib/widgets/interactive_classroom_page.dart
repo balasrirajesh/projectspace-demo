@@ -224,19 +224,52 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       }
     };
 
-    _classroomService.onPermissionUpdate = (mic, video, screenShare) async {
-      if (mounted) {
-        setState(() {
-          _canAccessMic = mic;
-          _canAccessVideo = video;
-          _canShareScreen = screenShare;
-        });
+    _classroomService.onPermissionUpdate = (mic, video, screenShare) {
+      // NOTE: This callback fires directly from a Socket.IO event dispatch.
+      // We must NOT call Permission.camera.request() or any async native API
+      // here directly — on Android it pauses the Activity which drops the
+      // socket heartbeat and kicks the student out.
+      // Instead, we store the permission state and defer ALL media work to
+      // the next frame via addPostFrameCallback.
+      if (!mounted) return;
+
+      setState(() {
+        _canAccessMic = mic;
+        _canAccessVideo = video;
+        _canShareScreen = screenShare;
+      });
+
+      // Show notification immediately so the student knows something happened.
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mic || video
+              ? "✅ Media access granted — starting camera/mic..."
+              : "🚫 Your media access has been revoked."),
+          backgroundColor: mic || video ? Colors.green : Colors.redAccent,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Defer the actual media start to the next frame so we are fully
+      // off the socket callback stack before any native dialog appears.
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
 
         if ((mic || video) && _classroomService.localStream == null) {
           try {
             await _classroomService.startLocalStream();
           } catch (e) {
-            dev.log('❌ [RTC] Error starting local stream: $e');
+            dev.log('❌ [RTC] Error starting local stream after permission grant: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Could not start camera/mic: $e'),
+                  backgroundColor: Colors.orange.shade800,
+                ),
+              );
+            }
+            return;
           }
           if (mounted) {
             setState(() {
@@ -248,21 +281,10 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         } else if (!mic && !video && _classroomService.localStream != null) {
           _classroomService.stopLocalStream();
           if (mounted) {
-            setState(() {
-              _localRenderer.srcObject = null;
-            });
+            setState(() => _localRenderer.srcObject = null);
           }
         }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mic || video 
-              ? "You have been granted media access! 🎤📹" 
-              : "Your media access has been revoked."),
-            backgroundColor: mic || video ? Colors.green : Colors.redAccent,
-          ),
-        );
-      }
+      });
     };
 
     _classroomService.onMentorJoined = (mentorId, userName, {role}) {
