@@ -449,6 +449,19 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     // Step 4: Leave the signaling room and clean up peer connections.
     await _classroomService.leaveRoom();
+
+    // Step 5: Re-connect the MentorshipProvider's global-lobby socket.
+    // The ClassroomService is a singleton. When joinRoom() was called for
+    // this classroom, it disconnected the MentorshipProvider's global-lobby
+    // connection. Now that the classroom is over, we restore it so the
+    // Sessions page continues to show live rooms.
+    try {
+      final mentorship = context.read<MentorshipProvider>();
+      mentorship.reconnectLobby();
+    } catch (_) {
+      // context may be invalid at this point — that's fine,
+      // the provider will reconnect on next page visit.
+    }
   }
 
   void _sendMessage() {

@@ -18,7 +18,10 @@ class SessionsPage extends StatefulWidget {
 
 class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _joinController = TextEditingController();
+  // Separate controllers so the Interactive and Broadcast Quick-Join
+  // fields don't share the same text value.
+  final TextEditingController _interactiveJoinController = TextEditingController();
+  final TextEditingController _broadcastJoinController = TextEditingController();
 
   @override
   void initState() {
@@ -32,7 +35,8 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
   @override
   void dispose() {
     _tabController.dispose();
-    _joinController.dispose();
+    _interactiveJoinController.dispose();
+    _broadcastJoinController.dispose();
     super.dispose();
   }
 
@@ -335,6 +339,8 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
   }
 
   Widget _buildJoinRoomSection(BuildContext context, {required bool isInteractive}) {
+    // Each tab gets its own controller so they don't share text.
+    final controller = isInteractive ? _interactiveJoinController : _broadcastJoinController;
     return Container(
       margin: const EdgeInsets.all(24),
       padding: const EdgeInsets.all(20),
@@ -373,7 +379,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                     ],
                   ),
                   child: TextField(
-                    controller: _joinController,
+                    controller: controller,
                     decoration: const InputDecoration(
                       hintText: "Enter room name...",
                       hintStyle: TextStyle(fontSize: 14, color: AppColors.textLight),
@@ -388,7 +394,7 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    final roomId = _joinController.text.trim();
+                    final roomId = controller.text.trim();
                     if (roomId.isNotEmpty) {
                       Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(

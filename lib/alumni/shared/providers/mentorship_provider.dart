@@ -129,6 +129,38 @@ class MentorshipProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-connects to the global-lobby signaling channel.
+  ///
+  /// Called by [InteractiveClassroomPage] after a session ends, because the
+  /// ClassroomService singleton disconnects the lobby socket when it joins a
+  /// classroom room. This restores live room-list updates on the Sessions page.
+  void reconnectLobby() {
+    dev.log('🔄 [MENTORSHIP] Reconnecting to global-lobby after classroom session...');
+    // Re-register our room list callback (it was overwritten by the classroom)
+    _classroomService.onRoomListUpdate = (roomData) {
+      dev.log('📊 [MENTORSHIP] Room list updated: ${roomData.length} rooms');
+      _webinars = roomData.map((r) => {
+        'id': r['id'],
+        'title': r['title'],
+        'startTime': r['startTime'],
+        'isLive': r['isLive'],
+        'attendees': r['attendees'],
+      }).toList();
+      notifyListeners();
+    };
+
+    _classroomService.joinRoom(
+      serverUrl: AuthProvider.getSignalingUrl(),
+      roomId: 'global-lobby',
+      userName: 'Discovery-User',
+      role: ClassroomRole.student,
+      useMedia: false,
+    ).catchError((e) {
+      dev.log('⚠️ [MENTORSHIP] Lobby reconnect failed: $e');
+      return null;
+    });
+  }
+
   void _seedMockWebinars() {
     if (_webinars.isNotEmpty) return;
     
