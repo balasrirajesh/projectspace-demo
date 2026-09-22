@@ -317,7 +317,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     };
 
     final classroomRole =
-        (auth.role == UserRole.mentor || auth.role == UserRole.admin)
+        (auth.role == UserRole.mentor || auth.role == UserRole.alumni || auth.role == UserRole.admin)
             ? ClassroomRole.mentor
             : ClassroomRole.student;
 
@@ -1692,7 +1692,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                   ElevatedButton.icon(
                     onPressed: () async {
                       final auth = context.read<AuthProvider>();
-                      final isMentor = auth.role == UserRole.mentor || auth.role == UserRole.admin;
+                      final isMentor = auth.role == UserRole.mentor || auth.role == UserRole.alumni || auth.role == UserRole.admin;
 
                       if (isMentor) {
                         final shouldEnd = await showDialog<bool>(

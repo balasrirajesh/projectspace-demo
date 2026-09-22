@@ -122,7 +122,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
               rollNumber: 'N/A',
             )
           : null,
-      alumni: role == UserRole.mentor
+      alumni: (role == UserRole.mentor || role == UserRole.alumni)
           ? AlumniModel(
               id: legacy.userId!,
               name: name,
