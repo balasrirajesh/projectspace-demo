@@ -28,7 +28,7 @@ services:
   - type: web
     name: graduway-web
     env: static
-    buildCommand: flutter/bin/flutter build web --release || echo "Deploying pre-built web assets"
+    buildCommand: bash render_build.sh
     staticPublishPath: build/web
     routes:
       - type: rewrite
