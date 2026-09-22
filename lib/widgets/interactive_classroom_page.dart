@@ -1351,7 +1351,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     final XFile? image =
         await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
 
-    if (image != null) {
+    if (image != null && mounted) {
       final auth = context.read<AuthProvider>();
       await _classroomService.sendImage(image, auth.userName);
     }
@@ -1715,7 +1715,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                         );
 
                         if (shouldEnd == null) return;
-                        if (shouldEnd) {
+                        if (shouldEnd && mounted) {
                           // Handle end-for-all logic
                           final mentorship = context.read<MentorshipProvider>();
                           await mentorship.endWebinar(widget.roomId);

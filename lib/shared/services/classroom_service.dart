@@ -192,7 +192,7 @@ class ClassroomService {
 
         if (remoteId != _socket!.id) {
           final role = meta['role'];
-          if (role == 'mentor' || role == 'admin') {
+          if (role == 'mentor' || role == 'admin' || role == 'alumni' || role == 'faculty') {
             onMentorJoined?.call(remoteId, meta['userName'] ?? 'Host', role: role);
           }
           // The new joiner (us) ALWAYS creates offers to all existing participants.
@@ -218,7 +218,7 @@ class ClassroomService {
       participants[id] = meta;
       onParticipantsChanged?.call();
 
-      if (meta['role'] == 'mentor' || meta['role'] == 'admin') {
+      if (meta['role'] == 'mentor' || meta['role'] == 'admin' || meta['role'] == 'alumni' || meta['role'] == 'faculty') {
         onMentorJoined?.call(id, meta['userName']!, role: meta['role']);
       }
 

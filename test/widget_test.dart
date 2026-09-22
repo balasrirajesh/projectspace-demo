@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graduway/models/user_role.dart';
 import 'package:graduway/providers/app_providers.dart';
-import 'package:graduway/data/models/student_model.dart';
-import 'package:graduway/data/models/alumni_model.dart';
-import 'package:graduway/data/models/models.dart';
 import 'package:graduway/data/repositories/mock_data_repository.dart';
 import 'package:graduway/widgets/custom_app_bar.dart';
 

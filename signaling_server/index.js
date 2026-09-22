@@ -106,10 +106,14 @@ app.get('/api/clear-rooms', (req, res) => {
   res.send(`Cleared ${roomIds.length} rooms. Dashboard will update on next client connect.`);
 });
 
+const isHostRole = (role) => {
+  return role === 'mentor' || role === 'admin' || role === 'alumni' || role === 'faculty';
+};
+
 const getFormattedRoomList = () => {
   return Object.keys(rooms).map(id => {
     const participantMap = rooms[id].participants || {};
-    const hosts = Object.values(participantMap).filter(p => p.role === 'mentor' || p.role === 'admin');
+    const hosts = Object.values(participantMap).filter(p => isHostRole(p.role));
     
     return {
       id,
@@ -131,32 +135,27 @@ io.on('connection', (socket) => {
   // Send initial room list to new connection
   socket.emit('room-list', getFormattedRoomList());
 
-  // Join Room: { roomId, role: 'mentor' | 'student', title }
+  // Join Room: { roomId, role: 'mentor' | 'student' | 'alumni' | 'admin', title }
   socket.on('join-room', (data) => {
     const roomId = typeof data === 'string' ? data : data.roomId;
-    const role = typeof data === 'object' ? data.role : 'mentor';
+    const role = typeof data === 'object' ? (data.role || 'student') : 'mentor';
     const title = typeof data === 'object' ? data.title : roomId;
 
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.role = role;
 
-    // Ensure room exists (Only Mentor/Admin can initialize, except for global-lobby)
+    // Ensure room exists in memory
     if (!rooms[roomId]) {
-      if (role === 'mentor' || role === 'admin' || roomId === 'global-lobby') {
-        console.log(`[ROOM] Initializing room: ${roomId} by ${role}`);
-        rooms[roomId] = {
-          participants: {}, // socketId -> { role, userName }
-          title: title || (roomId === 'global-lobby' ? 'Global Lobby' : roomId),
-          startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        // If it's a global lobby, we should broadcast that a new room "appeared" in the list tracking
-        if (roomId === 'global-lobby') broadcastRoomList();
-      } else {
-        console.log(`[JOIN REJECTED] Student ${socket.id} tried to join non-existent room: ${roomId}`);
-        socket.emit('error', 'This classroom has not been started by the faculty yet.');
-        return;
-      }
+      const isHost = isHostRole(role) || roomId === 'global-lobby';
+      console.log(`[ROOM] Initializing room: ${roomId} by ${role} (isHost: ${isHost})`);
+      rooms[roomId] = {
+        participants: {}, // socketId -> { role, userName }
+        title: title || (roomId === 'global-lobby' ? 'Global Lobby' : roomId),
+        startTime: isHost ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null
+      };
+    } else if (isHostRole(role) && !rooms[roomId].startTime) {
+      rooms[roomId].startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     // HANDSHAKE: Send historical messages to the joining user
@@ -283,15 +282,13 @@ io.on('connection', (socket) => {
     
     if (rooms[roomId]) {
       const participant = rooms[roomId].participants[socket.id];
-      const isHost = participant && (participant.role === 'mentor' || participant.role === 'admin');
+      const isHost = participant && isHostRole(participant.role);
 
       delete rooms[roomId].participants[socket.id];
       socket.to(roomId).emit('participant-left', socket.id);
 
       if (isHost) {
-        // SUPERIOR TERMINATION: If leaving host is ADMIN, end room for EVERYONE.
-        // Otherwise (Alumni), only end if NO other hosts (Admin/Alumni) are left.
-        const remainingHosts = Object.values(rooms[roomId].participants).filter(p => p.role === 'mentor' || p.role === 'admin');
+        const remainingHosts = Object.values(rooms[roomId].participants).filter(p => isHostRole(p.role));
         const isSelfAdmin = participant.role === 'admin';
 
         if (isSelfAdmin || remainingHosts.length === 0) {
@@ -310,15 +307,13 @@ io.on('connection', (socket) => {
     const roomId = socket.data.roomId;
     if (roomId && rooms[roomId]) {
       const participant = rooms[roomId].participants[socket.id];
-      const isHost = participant && (participant.role === 'mentor' || participant.role === 'admin');
+      const isHost = participant && isHostRole(participant.role);
 
       delete rooms[roomId].participants[socket.id];
       socket.to(roomId).emit('participant-left', socket.id);
 
       if (isHost) {
-        // SUPERIOR LOGIC: If an Admin leaves, forcefully end for EVERYONE.
-        // If an Alumnus leaves, only end if no other hosts are present.
-        const remainingHosts = Object.values(rooms[roomId].participants).filter(p => p.role === 'mentor' || p.role === 'admin');
+        const remainingHosts = Object.values(rooms[roomId].participants).filter(p => isHostRole(p.role));
         const isSelfAdmin = participant.role === 'admin';
 
         if (isSelfAdmin || remainingHosts.length === 0) {
