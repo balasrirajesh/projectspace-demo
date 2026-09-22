@@ -140,7 +140,7 @@ class AuthProvider with ChangeNotifier {
 
   // Production Signaling URL is now loaded from .env
   static String get _productionSignalingUrl =>
-      dotenv.get('SIGNALING_URL', fallback: '');
+      dotenv.get('SIGNALING_URL', fallback: 'https://graduway-backend-btaf.onrender.com');
 
   // Local Signaling URL fallback
   static String get _localSignalingUrl =>
