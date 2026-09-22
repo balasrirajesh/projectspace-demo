@@ -28,7 +28,6 @@ services:
   - type: web
     name: graduway-web
     env: static
-    plan: free
     buildCommand: flutter/bin/flutter build web --release || echo "Deploying pre-built web assets"
     staticPublishPath: build/web
     routes:
