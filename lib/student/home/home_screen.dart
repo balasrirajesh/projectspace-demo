@@ -325,7 +325,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     icon: Icons.school_rounded,
                     label: 'Classroom',
                     color: Colors.deepPurple,
-                    onTap: () => context.push('/classroom'),
+                    onTap: () => context.push('/sessions'),
                   ),
                   _QuickLink(
                     icon: Icons.handshake_rounded,

@@ -18,7 +18,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = context.canPop();
+    final canPop = GoRouter.maybeOf(context)?.canPop() ?? Navigator.canPop(context);
 
     return AppBar(
       title: Text(title),
@@ -29,7 +29,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: (showBackButton && canPop)
           ? IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              onPressed: () => context.pop(),
+              onPressed: () {
+                if (GoRouter.maybeOf(context)?.canPop() == true) {
+                  context.pop();
+                } else if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              },
             )
           : null,
       actions: actions,

@@ -69,7 +69,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              context.go('/login');
+            }
+          },
         ),
       ),
       body: Stack(
@@ -141,7 +147,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     children: [
                       Text("Already have an account?", style: textTheme.bodyMedium),
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else {
+                            context.go('/login');
+                          }
+                        },
                         child: const Text("Login", style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],

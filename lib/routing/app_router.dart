@@ -41,7 +41,7 @@ import 'package:graduway/admin/announcements/announcements_page.dart';
 import 'package:graduway/admin/users/user_management_page.dart';
 
 // Routes that do NOT require login
-const _publicRoutes = ['/splash', '/onboarding', '/login'];
+const _publicRoutes = ['/splash', '/onboarding', '/login', '/signup'];
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -63,10 +63,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isLoggedIn ? null : '/login';
       }
 
-      // 3. If logged in and on login/onboarding, go to role-specific home
+      // 3. If logged in and on login/onboarding/signup, go to role-specific home
       if (isLoggedIn &&
           (state.matchedLocation == '/login' ||
-              state.matchedLocation == '/onboarding')) {
+              state.matchedLocation == '/onboarding' ||
+              state.matchedLocation == '/signup')) {
         if (authState.role == UserRole.student) return '/home';
         if (authState.role == UserRole.alumni || authState.role == UserRole.mentor) return '/alumni-home';
         if (authState.role == UserRole.admin) return '/admin-home';
@@ -78,6 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
 
       // ─── Student Shell ──────────────────────────────────────────────────
       ShellRoute(
@@ -182,7 +184,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/skill-package',
           builder: (_, __) => const SkillPackageScreen()),
-      GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
 
       // ─── Fullscreen session routes (no shell / no navbar) ─────────────
       GoRoute(

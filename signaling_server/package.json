@@ -1,7 +1,7 @@
 {
-  "name": "signaling_server",
+  "name": "graduway-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "GraduWay Unified WebRTC Signaling and REST Backend",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
