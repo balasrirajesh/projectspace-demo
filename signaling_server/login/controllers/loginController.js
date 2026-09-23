@@ -14,40 +14,50 @@ exports.login = async (req, res) => {
         let user = await User.findOne({ email });
         console.log('[AUTH] User Search Result:', user ? 'Found' : 'Not Found');
         
-        if (!user) {
-            console.log(`[AUTH] Auto-registering new user: ${email}`);
-            
-            // AUTOMATED ROLE DETECTION
-            const lowEmail = email.toLowerCase();
-            let role = 'student';
-            if (lowEmail.endsWith('@admin.com')) {
-                role = 'admin';
-            } else if (
-                lowEmail.endsWith('@mentor.com') ||
-                lowEmail.endsWith('@mentors.com') ||
-                lowEmail.endsWith('@alum.com') ||
-                lowEmail.endsWith('@alumni.com') ||
-                lowEmail.endsWith('@alumin.com')
-            ) {
-                role = 'mentor';
-            } else if (lowEmail.endsWith('@stud.com')) {
-                role = 'student';
-            }
+        // AUTOMATED ROLE DETECTION & SYNC
+        const lowEmail = email.toLowerCase();
+        let correctRole = 'student';
+        if (lowEmail.endsWith('@admin.com')) {
+            correctRole = 'admin';
+        } else if (
+            lowEmail.endsWith('@mentor.com') ||
+            lowEmail.endsWith('@mentors.com') ||
+            lowEmail.endsWith('@alum.com') ||
+            lowEmail.endsWith('@alumni.com') ||
+            lowEmail.endsWith('@alumin.com')
+        ) {
+            correctRole = 'mentor';
+        } else if (lowEmail.endsWith('@stud.com')) {
+            correctRole = 'student';
+        }
 
+        if (!user) {
+            console.log(`[AUTH] Auto-registering new user: ${email} as ${correctRole}`);
             user = new User({
                 id: uuidv4(),
                 email: email,
                 name: name || email.split('@')[0],
-                role: role,
-                status: role === 'admin' ? 'verified' : 'incomplete'
+                role: correctRole,
+                status: correctRole === 'admin' ? 'verified' : 'incomplete'
             });
             await user.save();
-            console.log(`[AUTH] New ${role} account saved successfully`);
-        } else if (name && name !== user.name) {
-            // SYNC: Update name if it has changed in the Flutter app
-            user.name = name;
-            await user.save();
-            console.log(`[AUTH] Updated name for user: ${email}`);
+            console.log(`[AUTH] New ${correctRole} account saved successfully`);
+        } else {
+            // SYNC: Ensure existing user's role and name are accurately updated
+            let needsSave = false;
+            if (user.role !== correctRole) {
+                console.log(`[AUTH] Correcting role for ${email}: ${user.role} -> ${correctRole}`);
+                user.role = correctRole;
+                needsSave = true;
+            }
+            if (name && name !== user.name) {
+                user.name = name;
+                needsSave = true;
+            }
+            if (needsSave) {
+                await user.save();
+                console.log(`[AUTH] Updated user info for: ${email} (role: ${user.role})`);
+            }
         }
         
         res.status(200).json(user);

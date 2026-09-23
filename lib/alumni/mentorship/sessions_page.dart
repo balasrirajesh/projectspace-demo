@@ -143,14 +143,21 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
               final id = controller.text.trim();
               if (id.isNotEmpty) {
                 Navigator.pop(context);
-                final wId = id.toLowerCase().replaceAll(' ', '-');
-                // rootNavigator: true breaks out of the AlumniShell
-                // so the bottom navbar does not show over full-screen sessions
+                final clean = id.toLowerCase().replaceAll(' ', '-');
+                final provider = context.read<MentorshipProvider>();
+                String targetId = clean;
+                if (!clean.startsWith('int-') && !clean.startsWith('brd-')) {
+                  if (provider.webinars.any((w) => w['id'] == 'int-$clean')) {
+                    targetId = 'int-$clean';
+                  } else if (provider.webinars.any((w) => w['id'] == 'brd-$clean')) {
+                    targetId = 'brd-$clean';
+                  }
+                }
                 Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
-                    builder: (context) => wId.startsWith('brd-')
-                      ? alumni_broadcast.BroadcastStreamingPage(streamId: wId)
-                      : InteractiveClassroomPage(roomId: wId),
+                    builder: (context) => targetId.startsWith('brd-')
+                      ? alumni_broadcast.BroadcastStreamingPage(streamId: targetId)
+                      : InteractiveClassroomPage(roomId: targetId),
                   ),
                 );
               }

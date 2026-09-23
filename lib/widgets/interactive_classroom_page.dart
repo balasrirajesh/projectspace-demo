@@ -99,7 +99,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
           // CRITICAL FIX: If a stream arrives from a host, make sure we hide the waiting overlay
           final meta = _classroomService.participants[id] ?? {};
           final role = meta['role'];
-          if (role == 'mentor' || role == 'admin') {
+          if (role == 'mentor' || role == 'admin' || role == 'alumni' || role == 'faculty') {
             _hasHost = true;
           }
         });
@@ -618,7 +618,8 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 _buildErrorOverlay()
               else if (auth.role == UserRole.student &&
                   !_hasHost &&
-                  _remoteRenderers.isEmpty)
+                  _remoteRenderers.isEmpty &&
+                  !_hasActiveHostParticipant())
                 _buildWaitingRoomOverlay(),
 
               // 3. CHAT OVERLAY (Takes precedence when open)
@@ -630,6 +631,17 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     ),
   );
 }
+
+  bool _hasActiveHostParticipant() {
+    if (_hasHost) return true;
+    for (final meta in _classroomService.participants.values) {
+      final role = meta['role'];
+      if (role == 'mentor' || role == 'admin' || role == 'alumni' || role == 'faculty') {
+        return true;
+      }
+    }
+    return false;
+  }
 
   Widget _buildErrorOverlay() {
     return Positioned.fill(
