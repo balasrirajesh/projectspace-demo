@@ -343,11 +343,11 @@ class _CredentialHintCard extends StatelessWidget {
           const Divider(height: 20, thickness: 1, color: Color(0xFFDDE3FF)),
           _HintRow(
             icon: Icons.work_outline_rounded,
-            role: 'Alumni',
+            role: 'Mentor',
             color: AppColors.alumni,
             lines: const [
-              'Email ending with  @alum.com',
-              'e.g.  yourname@alum.com',
+              'Email ending with  @mentor.com',
+              'e.g.  yourname@mentor.com',
               'Password: anything',
             ],
           ),

@@ -99,6 +99,32 @@ const rooms = {};
 
 // Maintenance endpoints (under /api for production proxy support)
 app.get('/api/rooms', (req, res) => res.json(rooms));
+app.post('/api/rooms', (req, res) => {
+  const { id, title, mentorId, mentorName, startTime, isLive } = req.body;
+  if (!id) return res.status(400).json({ error: 'Room id is required' });
+  if (!rooms[id]) {
+    rooms[id] = {
+      participants: {},
+      title: title || id,
+      startTime: startTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      mentorId,
+      mentorName,
+      isLive: isLive !== undefined ? isLive : true
+    };
+  }
+  broadcastRoomList();
+  console.log(`[API] Created room: ${id} (${title}) by mentor ${mentorName || mentorId}`);
+  res.status(201).json({ success: true, room: rooms[id] });
+});
+app.delete('/api/rooms/:id', (req, res) => {
+  const { id } = req.params;
+  if (rooms[id]) {
+    delete rooms[id];
+    broadcastRoomList();
+    console.log(`[API] Deleted room: ${id}`);
+  }
+  res.status(200).json({ success: true });
+});
 app.get('/api/clear-rooms', (req, res) => {
   const roomIds = Object.keys(rooms);
   roomIds.forEach(id => delete rooms[id]);

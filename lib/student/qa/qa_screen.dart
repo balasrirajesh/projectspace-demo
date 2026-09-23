@@ -162,13 +162,13 @@ class _QAScreenState extends ConsumerState<QAScreen> {
           children: [
             Row(
               children: [
-                const Text('Ask Alumni', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                const Text('Ask Mentors', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const Spacer(),
                 IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
               ],
             ),
             const SizedBox(height: 4),
-            const Text('Your question will be visible to all verified alumni.', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+            const Text('Your question will be visible to all verified mentors.', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
             const SizedBox(height: 20),
             TextField(
               controller: _questionController,
@@ -220,7 +220,7 @@ class _QAScreenState extends ConsumerState<QAScreen> {
                   _selectedTags.clear();
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Question posted! Alumni will notify you once answered.')),
+                    const SnackBar(content: Text('Question posted! Mentors will notify you once answered.')),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(

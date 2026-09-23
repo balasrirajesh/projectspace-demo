@@ -22,7 +22,13 @@ exports.login = async (req, res) => {
             let role = 'student';
             if (lowEmail.endsWith('@admin.com')) {
                 role = 'admin';
-            } else if (lowEmail.endsWith('@alumin.com')) {
+            } else if (
+                lowEmail.endsWith('@mentor.com') ||
+                lowEmail.endsWith('@mentors.com') ||
+                lowEmail.endsWith('@alum.com') ||
+                lowEmail.endsWith('@alumni.com') ||
+                lowEmail.endsWith('@alumin.com')
+            ) {
                 role = 'mentor';
             } else if (lowEmail.endsWith('@stud.com')) {
                 role = 'student';

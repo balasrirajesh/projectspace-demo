@@ -88,7 +88,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 children: [
                   const SizedBox(height: 10),
                   Text(
-                    "Join Alumni Connect",
+                    "Join Mentor Connect",
                     textAlign: TextAlign.center,
                     style: textTheme.displayLarge,
                   ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2),

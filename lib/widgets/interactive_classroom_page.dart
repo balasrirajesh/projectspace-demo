@@ -301,7 +301,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     _classroomService.onMentorJoined = (mentorId, userName, {role}) {
       if (mounted) {
-        final hostLabel = (role == 'admin') ? 'Faculty' : 'Alumnus';
+        final hostLabel = (role == 'admin') ? 'Faculty' : 'Mentor';
         setState(() {
           _hasHost = true;
           _connectionState = "$hostLabel ($userName) Joined! Connecting...";
@@ -1108,7 +1108,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             ? 'You (Student)'
             : (auth.role == UserRole.admin
                 ? 'You (Faculty Host)'
-                : 'You (Alumni)'),
+                : 'You (Mentor)'),
         'role': auth.role.name,
         'isHost': !isStudent,
         'hasVideo': _classroomService.localStream != null,
@@ -1138,7 +1138,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
               'id': id,
               'renderer': renderer,
               'name': isRemoteHost
-                  ? (role == 'admin' ? 'Faculty: $name' : 'Alumni: $name')
+                  ? (role == 'admin' ? 'Faculty: $name' : 'Mentor: $name')
                   : name,
               'role': role,
               'isHost': isRemoteHost,

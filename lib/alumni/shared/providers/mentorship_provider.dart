@@ -174,7 +174,7 @@ class MentorshipProvider with ChangeNotifier {
       },
       {
         'id': 'int-career-talk',
-        'title': 'Career Q&A with Senior Alumni',
+        'title': 'Career Q&A with Senior Mentors',
         'startTime': 'Today, 6:00 PM',
         'isLive': false,
         'attendees': 45,
@@ -259,23 +259,23 @@ class MentorshipProvider with ChangeNotifier {
 
   /// Starts a new webinar session.
   Future<bool> startNewWebinar(String title, {String? streamId}) async {
-    if (_AuthProvider == null || _AuthProvider!.userId == null) {
-      dev.log('⚠️ [MENTORSHIP] Cannot start webinar: No Auth user');
-      return false;
-    }
-    
     _isLoading = true;
     notifyListeners();
 
     final actualId = streamId ?? title.toLowerCase().replaceAll(' ', '-');
-    dev.log('🚀 [MENTORSHIP] Starting webinar: $title (ID: $actualId)');
+    final mentorId = _AuthProvider?.userId ?? 'mentor_${DateTime.now().millisecondsSinceEpoch}';
+    final mentorName = (_AuthProvider?.userName != null && _AuthProvider!.userName.isNotEmpty)
+        ? _AuthProvider!.userName
+        : 'Mentor';
+
+    dev.log('🚀 [MENTORSHIP] Starting webinar: $title (ID: $actualId) by $mentorName');
 
     try {
       final success = await _service.createWebinar(
         id: actualId,
         title: title,
-        mentorId: _AuthProvider!.userId!,
-        mentorName: _AuthProvider!.userName,
+        mentorId: mentorId,
+        mentorName: mentorName,
       );
       
       if (!success) {

@@ -350,13 +350,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SizedBox(height: 32),
 
-            // Top Alumni
+            // Top Mentors
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Top Alumni', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const Text('Top Mentors', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                   TextButton(
                     onPressed: () => context.push('/alumni'),
                     child: const Text('See All'),

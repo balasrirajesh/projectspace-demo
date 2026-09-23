@@ -1,12 +1,18 @@
 const ChatSession = require('../../core/models/ChatSession');
 const ChatMessage = require('../../core/models/ChatMessage');
+const { v4: uuidv4 } = require('uuid');
 
 exports.createOrGetSession = async (req, res) => {
   try {
     const { id, mentor, mentee } = req.body;
-    let session = await ChatSession.findById(id);
+    const sessionId = id || (mentor && mentee ? `${mentor.id || mentor}_${mentee.id || mentee}` : uuidv4());
+    let session = await ChatSession.findById(sessionId);
     if (!session) {
-      session = new ChatSession({ _id: id, mentor, mentee });
+      session = new ChatSession({
+        _id: sessionId,
+        mentor: mentor || { id: 'unknown-mentor', name: 'Mentor' },
+        mentee: mentee || { id: 'unknown-student', name: 'Student' }
+      });
       await session.save();
     }
     res.status(200).json(session);
@@ -30,10 +36,9 @@ exports.getUserSessions = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { id, senderId, text, timestamp } = req.body;
+    const { senderId, text, timestamp } = req.body;
     
     const message = new ChatMessage({
-      _id: id,
       sessionId,
       senderId,
       text,

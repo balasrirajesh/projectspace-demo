@@ -35,11 +35,11 @@ class _AlumniListScreenState extends ConsumerState<AlumniListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Our Alumni 👩‍💼',
+                    const Text('Our Mentors 👩‍💼',
                         style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary))
                         .animate().fadeIn(duration: 400.ms),
                     const SizedBox(height: 4),
-                    Text('${alumni.length} verified professionals from Aditya College',
+                    Text('${alumni.length} verified mentors from Aditya College',
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))
                         .animate().fadeIn(delay: 100.ms),
                     const SizedBox(height: 16),
@@ -108,7 +108,7 @@ class _AlumniListScreenState extends ConsumerState<AlumniListScreen> {
                           children: const [
                             Text('🔍', style: TextStyle(fontSize: 48)),
                             SizedBox(height: 12),
-                            Text('No alumni found',
+                            const Text('No mentors found',
                                 style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
                           ],
                         ),

@@ -7,11 +7,18 @@ exports.signup = async (req, res) => {
         
         // AUTOMATED ROLE FORCING (Security hardening)
         if (userData.email) {
-            if (userData.email.endsWith('@admin.com')) {
+            const lowEmail = userData.email.toLowerCase();
+            if (lowEmail.endsWith('@admin.com')) {
                 userData.role = 'admin';
-            } else if (userData.email.endsWith('@alumin.com')) {
+            } else if (
+                lowEmail.endsWith('@mentor.com') ||
+                lowEmail.endsWith('@mentors.com') ||
+                lowEmail.endsWith('@alum.com') ||
+                lowEmail.endsWith('@alumni.com') ||
+                lowEmail.endsWith('@alumin.com')
+            ) {
                 userData.role = 'mentor';
-            } else if (userData.email.endsWith('@stud.com')) {
+            } else if (lowEmail.endsWith('@stud.com')) {
                 userData.role = 'student';
             }
         }

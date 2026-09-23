@@ -252,9 +252,14 @@ class AuthProvider with ChangeNotifier {
     _isDemoMode = false;
 
     final lowEmail = email.toLowerCase();
+    final isMentor = lowEmail.endsWith('@mentor.com') ||
+        lowEmail.endsWith('@mentors.com') ||
+        lowEmail.endsWith('@alum.com') ||
+        lowEmail.endsWith('@alumni.com') ||
+        lowEmail.endsWith('@alumin.com');
     _role = lowEmail.endsWith('@admin.com')
         ? UserRole.admin
-        : (lowEmail.endsWith('@alumni.com')
+        : (isMentor
             ? UserRole.mentor
             : (lowEmail.endsWith('@stud.com') ? UserRole.student : UserRole.student));
     notifyListeners();
@@ -331,9 +336,14 @@ class AuthProvider with ChangeNotifier {
   bool _fallbackToDemo(String email) {
     _isDemoMode = true;
     final lowEmail = email.toLowerCase();
+    final isMentor = lowEmail.endsWith('@mentor.com') ||
+        lowEmail.endsWith('@mentors.com') ||
+        lowEmail.endsWith('@alum.com') ||
+        lowEmail.endsWith('@alumni.com') ||
+        lowEmail.endsWith('@alumin.com');
     _role = lowEmail.endsWith('@admin.com')
         ? UserRole.admin
-        : (lowEmail.endsWith('@alumni.com')
+        : (isMentor
             ? UserRole.mentor
             : (lowEmail.endsWith('@stud.com') ? UserRole.student : UserRole.student));
     _userId = '${DateTime.now().millisecondsSinceEpoch}';
@@ -347,7 +357,7 @@ class AuthProvider with ChangeNotifier {
     if (_userName.isEmpty) _userName = 'Demo User';
     _status = UserStatus.incomplete;
     _forceSetup = false; // Default to false for demo logins
-    _techField = 'Alumni Mentor';
+    _techField = 'Mentor';
     _company = 'Tech Demo Corp';
     _error = null;
     notifyListeners();
@@ -492,9 +502,14 @@ class AuthProvider with ChangeNotifier {
     _email = email;
     _userId = "TEMP_${DateTime.now().millisecondsSinceEpoch}";
     final lowEmail = email.toLowerCase();
+    final isMentor = lowEmail.endsWith('@mentor.com') ||
+        lowEmail.endsWith('@mentors.com') ||
+        lowEmail.endsWith('@alum.com') ||
+        lowEmail.endsWith('@alumni.com') ||
+        lowEmail.endsWith('@alumin.com');
     _role = lowEmail.endsWith('@admin.com')
         ? UserRole.admin
-        : (lowEmail.endsWith('@alumni.com')
+        : (isMentor
             ? UserRole.mentor
             : UserRole.student);
     notifyListeners();
