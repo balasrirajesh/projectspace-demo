@@ -74,16 +74,21 @@ class ClassroomService {
   };
 
   void _startHandshakeWatchdog() {
-    // Every 10 seconds, check if we have participants without streams
-    Future.delayed(const Duration(seconds: 10), () async {
+    // Check periodically if we have participants with broken or missing connections
+    Future.delayed(const Duration(seconds: 12), () async {
       if (_socket == null || !_socket!.connected) return;
 
       for (var entry in participants.entries) {
         final id = entry.key;
         if (id == _socket!.id) continue;
 
-        if (!remoteStreams.containsKey(id)) {
-          dev.log('🐕 [RTC] Watchdog: No stream for $id (${entry.value['userName']}). Re-initiating offer...');
+        // Only retry if no peer connection exists or if the existing connection is closed/failed
+        final existingPc = peerConnections[id];
+        final isClosed = existingPc == null ||
+            existingPc.signalingState == RTCSignalingState.RTCSignalingStateClosed;
+
+        if (isClosed && !remoteStreams.containsKey(id)) {
+          dev.log('🐕 [RTC] Watchdog: Missing connection for $id (${entry.value['userName']}). Initiating offer...');
           await _createOffer(id, participants[_socket!.id]?['userName'] ?? 'User');
         }
       }
@@ -283,7 +288,7 @@ class ClassroomService {
   }
 
   // --- WebRTC Core ---
-
+ 
   Future<RTCPeerConnection> _createPeerConnection(String remoteId, String localName) async {
     if (peerConnections.containsKey(remoteId)) {
       return peerConnections[remoteId]!;
@@ -292,13 +297,26 @@ class ClassroomService {
     RTCPeerConnection pc = await createPeerConnection(_rtcConfig);
     peerConnections[remoteId] = pc;
 
-    // We no longer manually add transceivers here. 
-    // If we have a local stream, we add tracks.
-    // If we don't, setRemoteDescription will automatically create 
-    // the necessary transceivers based on the remote offer.
     if (localStream != null) {
       for (var track in localStream!.getTracks()) {
         pc.addTrack(track, localStream!);
+      }
+    } else {
+      // For receive-only peer connection (student initially without mic/cam),
+      // add transceivers in RecvOnly direction so SDP negotiations include video & audio reception.
+      try {
+        await pc.addTransceiver(
+          track: null,
+          kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
+        );
+        await pc.addTransceiver(
+          track: null,
+          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
+        );
+      } catch (e) {
+        dev.log('⚠️ [RTC] Transceiver init fallback: $e');
       }
     }
 
@@ -310,27 +328,30 @@ class ClassroomService {
       });
     };
 
-    pc.onTrack = (event) {
-      if (event.streams.isEmpty) return;
-      final stream = event.streams[0];
+    pc.onTrack = (event) async {
+      MediaStream stream;
+      if (event.streams.isNotEmpty) {
+        stream = event.streams[0];
+      } else if (event.track != null) {
+        // In WebRTC Unified Plan, event.streams can be empty.
+        // Wrap or attach the received track to the remote stream.
+        if (remoteStreams.containsKey(remoteId)) {
+          remoteStreams[remoteId]!.addTrack(event.track);
+          stream = remoteStreams[remoteId]!;
+        } else {
+          stream = await createLocalMediaStream('remote_${remoteId}_stream');
+          stream.addTrack(event.track);
+        }
+      } else {
+        return;
+      }
 
       if (remoteStreams.containsKey(remoteId)) {
-        if (remoteStreams[remoteId]!.id == stream.id) {
-          // Same camera stream — a new track (e.g. video after audio) has
-          // arrived. Re-fire the callback so the UI re-assigns srcObject on
-          // the renderer and picks up the new track.
-          dev.log('📹 [RTC] New track on existing stream for $remoteId — refreshing renderer');
-          onRemoteStreamAdded?.call(remoteId, stream);
-          return;
-        }
-
-        if (remoteScreenStreams[remoteId]?.id == stream.id) return;
-
-        dev.log('🖥️ [RTC] Remote screen share stream detected for $remoteId');
-        remoteScreenStreams[remoteId] = stream;
-        onRemoteScreenStreamAdded?.call(remoteId, stream);
+        dev.log('📹 [RTC] Track updated on existing stream for $remoteId — refreshing renderer');
+        remoteStreams[remoteId] = stream;
+        onRemoteStreamAdded?.call(remoteId, stream);
       } else {
-        dev.log('📹 [RTC] Remote camera stream detected for $remoteId');
+        dev.log('📹 [RTC] Remote stream detected for $remoteId (Tracks: ${stream.getTracks().length})');
         remoteStreams[remoteId] = stream;
         onRemoteStreamAdded?.call(remoteId, stream);
       }
@@ -338,8 +359,6 @@ class ClassroomService {
 
     pc.onIceConnectionState = (state) {
       dev.log('❄️ [RTC] Connection state with $remoteId: $state');
-      // Only remove if it's truly failed or closed. 
-      // Disconnected can be temporary (network flip).
       if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
           state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
         _removePeer(remoteId);
@@ -365,7 +384,7 @@ class ClassroomService {
   }
 
   Future<void> _createOffer(String targetId, String localName) async {
-    // Guard: don't create a new offer if we already have a stable connection.
+    // Guard: don't create a new offer if we already have an active PC in progress
     if (peerConnections.containsKey(targetId)) {
       final existing = peerConnections[targetId]!;
       if (existing.signalingState != RTCSignalingState.RTCSignalingStateClosed) {
@@ -391,7 +410,6 @@ class ClassroomService {
       });
     } catch (e) {
       dev.log('❌ [RTC] Failed to create offer to $targetId: $e');
-      // Remove the broken PC so the watchdog can retry cleanly.
       peerConnections.remove(targetId);
     }
   }
@@ -404,12 +422,8 @@ class ClassroomService {
     final pc = await _createPeerConnection(from, localName);
 
     // --- W3C Glare (Collision) Handling ---
-    // Both sides may have created offers simultaneously. Detect this and
-    // resolve it so only one valid connection is established.
     if (pc.signalingState == RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
       final myId = _socket?.id ?? '';
-      // The peer with the LARGER socket ID is 'polite' and rolls back.
-      // The peer with the SMALLER socket ID is 'impolite' and wins.
       final isPolite = myId.compareTo(from) > 0;
 
       if (isPolite) {
@@ -423,14 +437,17 @@ class ClassroomService {
           await newPc.setRemoteDescription(
               RTCSessionDescription(data['offer']['sdp'], data['offer']['type']));
           _remoteDescriptionsSet.add(from);
-          final answer = await newPc.createAnswer();
+          final answer = await newPc.createAnswer({
+            'offerToReceiveAudio': 1,
+            'offerToReceiveVideo': 1,
+          });
           await newPc.setLocalDescription(answer);
           _socket!.emit('answer', {'target': from, 'answer': answer.toMap(), 'fromName': localName});
           return;
         }
       } else {
         dev.log('👊 [RTC] Glare detected — I am impolite, ignoring their offer (my offer takes precedence)');
-        return; // Our offer will arrive at them; they will answer it.
+        return;
       }
     }
 
@@ -454,7 +471,10 @@ class ClassroomService {
       _iceQueues.remove(from);
     }
 
-    final answer = await activePc.createAnswer();
+    final answer = await activePc.createAnswer({
+      'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': 1,
+    });
     await activePc.setLocalDescription(answer);
     dev.log('📤 [RTC] Answer sent to $from');
 
@@ -679,29 +699,32 @@ class ClassroomService {
     }
 
     try {
-      // Small safety delay to ensure no other camera operations are pending
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 200));
 
       if (!kIsWeb) {
-        if (video) {
-          var camStatus = await Permission.camera.status;
-          if (!camStatus.isGranted) {
-            camStatus = await Permission.camera.request();
+        try {
+          if (video) {
+            var camStatus = await Permission.camera.status;
+            if (!camStatus.isGranted) {
+              camStatus = await Permission.camera.request();
+            }
+            if (!camStatus.isGranted) {
+              dev.log('❌ [RTC] Camera permission denied — falling back to audio only');
+              video = false;
+            }
           }
-          if (!camStatus.isGranted) {
-            dev.log('❌ [RTC] Camera permission denied — falling back to audio only');
-            video = false;
+          if (audio) {
+            var micStatus = await Permission.microphone.status;
+            if (!micStatus.isGranted) {
+              micStatus = await Permission.microphone.request();
+            }
+            if (!micStatus.isGranted) {
+              dev.log('❌ [RTC] Microphone permission denied');
+              audio = false;
+            }
           }
-        }
-        if (audio) {
-          var micStatus = await Permission.microphone.status;
-          if (!micStatus.isGranted) {
-            micStatus = await Permission.microphone.request();
-          }
-          if (!micStatus.isGranted) {
-            dev.log('❌ [RTC] Microphone permission denied');
-            audio = false;
-          }
+        } catch (permErr) {
+          dev.log('⚠️ [RTC] Permission request exception: $permErr');
         }
 
         if (!audio && !video) {
@@ -735,7 +758,6 @@ class ClassroomService {
         final id = entry.key;
         final pc = entry.value;
 
-        // Guard: socket may have disconnected during the getUserMedia call.
         if (_socket == null || !_socket!.connected) {
           dev.log('⚠️ [RTC] Socket disconnected during renegotiation for $id — skipping');
           continue;
@@ -751,7 +773,6 @@ class ClassroomService {
           }
 
           if (pc.signalingState != RTCSignalingState.RTCSignalingStateClosed) {
-            // Renegotiate.
             RTCSessionDescription offer = await pc.createOffer({
               'offerToReceiveAudio': 1,
               'offerToReceiveVideo': 1,
@@ -773,7 +794,6 @@ class ClassroomService {
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
       localStream = null;
-      // Do NOT trigger fatal onError — we do not want the student to be kicked out of the classroom.
     }
   }
 

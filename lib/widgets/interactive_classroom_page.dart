@@ -346,26 +346,22 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     _classroomService.onError = (message) {
       if (mounted) {
-        setState(() {
-          _connectionState = "Connection Failed";
-          _fatalError = message;
-        });
-        
-        // We no longer automatically pop. We show the error overlay instead.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚠️ $message'),
-            backgroundColor: Colors.orange.shade800,
-            duration: const Duration(seconds: 10),
-            action: SnackBarAction(
-              label: 'LEAVE',
-              textColor: Colors.white,
-              onPressed: () {
-                if (mounted) Navigator.pop(context);
-              },
+        dev.log('⚠️ [CLASS] ClassroomService error: $message');
+        if (message.contains('ended') || message.contains('closed')) {
+          setState(() {
+            _connectionState = "Session Ended";
+            _fatalError = message;
+          });
+        } else {
+          // For transient connection alerts, show SnackBar without locking screen or kicking student
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ $message'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 4),
             ),
-          ),
-        );
+          );
+        }
       }
     };
 
@@ -780,11 +776,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
   }
 
   Widget _buildParticipantCount() {
-    // Use the participants map (truth from the signaling server) but filter
-    // out our own socket ID \u2014 the server echoes us back in the list, so without
-    // this filter 1 alumni + 1 student = count 3 (self echoed once).
+    final auth = context.read<AuthProvider>();
     final remoteCount = _classroomService.participants.entries
-        .where((e) => e.key != _classroomService.mySocketId)
+        .where((e) =>
+            e.key != _classroomService.mySocketId &&
+            (e.value['userName'] ?? '') != auth.userName)
         .length;
     final count = 1 + remoteCount;
     return InkWell(
@@ -855,12 +851,19 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
             'name': auth.userName,
             'role': auth.role == UserRole.student
                 ? 'Student'
-                : (auth.role == UserRole.admin ? 'Faculty' : 'Alumnus'),
+                : (auth.role == UserRole.admin ? 'Faculty' : 'Mentor'),
             'isMe': true
           },
-          ..._classroomService.participants.entries.map((e) {
+          ..._classroomService.participants.entries
+              .where((e) =>
+                  e.key != _classroomService.mySocketId &&
+                  (e.value['userName'] ?? '') != auth.userName)
+              .map((e) {
             final name = e.value['userName'] ?? 'Participant';
-            final role = e.value['role'] == 'mentor' ? 'Member' : 'Student';
+            final rawRole = e.value['role'] ?? 'student';
+            final role = (rawRole == 'mentor' || rawRole == 'alumni')
+                ? 'Mentor'
+                : (rawRole == 'admin' || rawRole == 'faculty' ? 'Faculty' : 'Student');
             return {
               'id': e.key,
               'name': name,
@@ -1138,12 +1141,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
         'hasVideo': _classroomService.localStream != null,
       },
       ..._classroomService.participants.entries
-          // Filter out our OWN socket ID from the list. After a reconnect
-          // the server may still hold our previous socket ID, which would
-          // create a ghost tile labelled with our own name.
-          .where((e) => e.key != _classroomService.mySocketId)
-          // Also deduplicate: if the same userName appears twice (e.g. due
-          // to a brief reconnect with a new socket ID), keep only the first.
+          // Filter out our OWN socket ID and our own userName from remote tiles
+          .where((e) =>
+              e.key != _classroomService.mySocketId &&
+              (e.value['userName'] ?? '') != auth.userName)
+          // Deduplicate if the same userName appears multiple times
           .fold<Map<String, MapEntry<String, Map<String, String>>>>({}, (acc, e) {
             final name = e.value['userName'] ?? '';
             if (!acc.containsKey(name)) acc[name] = e;

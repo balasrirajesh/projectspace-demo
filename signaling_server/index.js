@@ -202,7 +202,15 @@ io.on('connection', (socket) => {
       })
       .catch(err => console.error('[ROOM HISTORY] Failed to load messages:', err));
 
-    // 1. Add to participant map
+    // 1. Add to participant map (clean up any previous socket for the same user first)
+    if (data.userName) {
+      for (const [sId, pMeta] of Object.entries(rooms[roomId].participants)) {
+        if (pMeta.userName === data.userName && sId !== socket.id) {
+          console.log(`[ROOM] Cleaning up stale participant entry for ${data.userName} (${sId})`);
+          delete rooms[roomId].participants[sId];
+        }
+      }
+    }
     rooms[roomId].participants[socket.id] = { role, userName: data.userName || 'Anonymous' };
 
     // 2. Send current participant list to the new joiner
