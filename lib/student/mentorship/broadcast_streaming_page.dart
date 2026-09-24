@@ -35,7 +35,13 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
   bool _isCameraOff = false;
   String? _errorMessage;
   bool _isConnecting = true;
-  String _hostName = "Loading...";
+  String get _effectiveStreamId {
+    final raw = widget.streamId.trim().toLowerCase().replaceAll(' ', '-');
+    if (raw.startsWith('brd-') || raw.startsWith('int-') || raw.startsWith('mentorship-')) {
+      return raw;
+    }
+    return 'brd-$raw';
+  }
 
   @override
   void initState() {
@@ -107,7 +113,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
       await _classroomService
           .joinRoom(
         serverUrl: AuthProvider.getSignalingUrl(),
-        roomId: widget.streamId,
+        roomId: _effectiveStreamId,
         userName: auth.userName,
         role: ClassroomRole.student,
         useMedia: false, // Watcher doesn't share video/audio
@@ -126,7 +132,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
         context.read<NotificationProvider>().addNotification({
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
           'title': 'Watching Live!',
-          'body': 'You are now watching the live session: ${widget.streamId}',
+          'body': 'You are now watching the live session: $_effectiveStreamId',
           'time': 'Just now',
           'isRead': false,
         });

@@ -28,8 +28,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _joinSession() {
-    final roomId = _roomIdController.text.trim().toLowerCase().replaceAll(' ', '-');
-    if (roomId.isNotEmpty) {
+    final raw = _roomIdController.text.trim().toLowerCase().replaceAll(' ', '-');
+    if (raw.isNotEmpty) {
+      final roomId = raw.startsWith('int-') || raw.startsWith('brd-') || raw.startsWith('mentorship-')
+          ? raw
+          : 'int-$raw';
       context.push('/classroom/$roomId');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

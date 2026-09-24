@@ -137,18 +137,31 @@ const isHostRole = (role) => {
 };
 
 const getFormattedRoomList = () => {
-  return Object.keys(rooms).map(id => {
-    const participantMap = rooms[id].participants || {};
-    const hosts = Object.values(participantMap).filter(p => isHostRole(p.role));
-    
-    return {
-      id,
-      title: rooms[id].title || id,
-      isLive: hosts.length > 0,
-      attendees: Object.keys(participantMap).length,
-      startTime: rooms[id].startTime
-    };
+  // Clean up any stale rooms that have no active participants
+  Object.keys(rooms).forEach(id => {
+    if (id !== 'global-lobby') {
+      const participantMap = rooms[id].participants || {};
+      const count = Object.keys(participantMap).length;
+      if (count === 0) {
+        delete rooms[id];
+      }
+    }
   });
+
+  return Object.keys(rooms)
+    .filter(id => id !== 'global-lobby')
+    .map(id => {
+      const participantMap = rooms[id].participants || {};
+      const hosts = Object.values(participantMap).filter(p => isHostRole(p.role));
+      
+      return {
+        id,
+        title: rooms[id].title || id,
+        isLive: hosts.length > 0,
+        attendees: Object.keys(participantMap).length,
+        startTime: rooms[id].startTime
+      };
+    });
 };
 
 const broadcastRoomList = () => {

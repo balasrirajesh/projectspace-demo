@@ -466,35 +466,53 @@ class ClassroomService {
   }
 
   Future<void> _handleAnswer(dynamic data) async {
-    final String from = data['from'].toString();
-    dev.log('📨 [RTC] Answer from $from');
-    final pc = peerConnections[from];
-    if (pc != null) {
-      await pc.setRemoteDescription(RTCSessionDescription(data['answer']['sdp'], data['answer']['type']));
-      _remoteDescriptionsSet.add(from);
-      
-      // Process queued ICE candidates
-      if (_iceQueues.containsKey(from)) {
-        dev.log('❄️ [RTC] Processing ${_iceQueues[from]!.length} queued ICE candidates for $from');
-        for (var candidate in _iceQueues[from]!) {
-          await pc.addCandidate(candidate);
+    try {
+      final String from = data['from'].toString();
+      dev.log('📨 [RTC] Answer from $from');
+      final pc = peerConnections[from];
+      if (pc != null) {
+        if (pc.signalingState == RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+          await pc.setRemoteDescription(
+              RTCSessionDescription(data['answer']['sdp'], data['answer']['type']));
+          _remoteDescriptionsSet.add(from);
+
+          // Process queued ICE candidates
+          if (_iceQueues.containsKey(from)) {
+            dev.log('❄️ [RTC] Processing ${_iceQueues[from]!.length} queued ICE candidates for $from');
+            for (var candidate in _iceQueues[from]!) {
+              try {
+                await pc.addCandidate(candidate);
+              } catch (e) {
+                dev.log('⚠️ [RTC] Queued ICE candidate error: $e');
+              }
+            }
+            _iceQueues.remove(from);
+          }
+        } else {
+          dev.log('⚠️ [RTC] Skipping answer from $from: PC in state ${pc.signalingState}');
         }
-        _iceQueues.remove(from);
       }
+    } catch (e) {
+      dev.log('❌ [RTC] Error handling answer: $e');
     }
   }
 
   Future<void> _handleIceCandidate(dynamic data) async {
-    final String from = data['from'].toString();
-    final pc = peerConnections[from];
-    final candidate = RTCIceCandidate(
-        data['candidate']['candidate'], data['candidate']['sdpMid'], data['candidate']['sdpMLineIndex']);
+    try {
+      final String from = data['from'].toString();
+      final pc = peerConnections[from];
+      if (data['candidate'] == null) return;
+      final candidate = RTCIceCandidate(
+          data['candidate']['candidate'], data['candidate']['sdpMid'], data['candidate']['sdpMLineIndex']);
 
-    if (pc != null && _remoteDescriptionsSet.contains(from)) {
-      await pc.addCandidate(candidate);
-    } else {
-      dev.log('❄️ [RTC] Queuing ICE candidate from $from (Remote description not yet set)');
-      _iceQueues.putIfAbsent(from, () => []).add(candidate);
+      if (pc != null && _remoteDescriptionsSet.contains(from)) {
+        await pc.addCandidate(candidate);
+      } else {
+        dev.log('❄️ [RTC] Queuing ICE candidate from $from (Remote description not yet set)');
+        _iceQueues.putIfAbsent(from, () => []).add(candidate);
+      }
+    } catch (e) {
+      dev.log('⚠️ [RTC] Error handling ICE candidate: $e');
     }
   }
 
@@ -643,44 +661,71 @@ class ClassroomService {
     }
   }
 
-  Future<void> startLocalStream() async {
+  Future<void> startLocalStream({bool audio = true, bool video = true}) async {
     if (localStream != null) {
-      dev.log('⚠️ [RTC] Local stream already exists, skipping initialization');
+      dev.log('⚠️ [RTC] Local stream already exists, updating track states');
+      if (audio) {
+        localStream!.getAudioTracks().forEach((t) => t.enabled = true);
+      }
+      if (video) {
+        localStream!.getVideoTracks().forEach((t) => t.enabled = true);
+      }
+      return;
+    }
+
+    if (!audio && !video) {
+      dev.log('⚠️ [RTC] startLocalStream called with neither audio nor video');
       return;
     }
 
     try {
       // Small safety delay to ensure no other camera operations are pending
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       if (!kIsWeb) {
-        var camStatus = await Permission.camera.status;
-        var micStatus = await Permission.microphone.status;
-
-        if (!camStatus.isGranted) {
-          camStatus = await Permission.camera.request();
+        if (video) {
+          var camStatus = await Permission.camera.status;
+          if (!camStatus.isGranted) {
+            camStatus = await Permission.camera.request();
+          }
+          if (!camStatus.isGranted) {
+            dev.log('❌ [RTC] Camera permission denied — falling back to audio only');
+            video = false;
+          }
         }
-        if (!micStatus.isGranted) {
-          micStatus = await Permission.microphone.request();
+        if (audio) {
+          var micStatus = await Permission.microphone.status;
+          if (!micStatus.isGranted) {
+            micStatus = await Permission.microphone.request();
+          }
+          if (!micStatus.isGranted) {
+            dev.log('❌ [RTC] Microphone permission denied');
+            audio = false;
+          }
         }
 
-        if (!camStatus.isGranted || !micStatus.isGranted) {
-          dev.log('❌ [RTC] Media permissions denied: cam=$camStatus mic=$micStatus');
+        if (!audio && !video) {
+          dev.log('❌ [RTC] All media permissions denied by user');
           return;
         }
       }
 
-      localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': {
-          'facingMode': 'user',
-          'width': 640,
-          'height': 480,
-        }
-      });
+      final mediaConstraints = <String, dynamic>{
+        'audio': audio,
+        'video': video
+            ? {
+                'facingMode': 'user',
+                'width': 640,
+                'height': 480,
+              }
+            : false,
+      };
+
+      localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
       if (localStream == null) {
-        throw Exception("Failed to acquire local media stream");
+        dev.log("⚠️ [RTC] Failed to acquire local media stream");
+        return;
       }
 
       dev.log('✅ [RTC] Local stream acquired. Tracks: ${localStream!.getTracks().length}');
@@ -696,35 +741,39 @@ class ClassroomService {
           continue;
         }
 
-        // Only add tracks if they aren't already there.
-        final senders = await pc.getSenders();
-        for (var track in localStream!.getTracks()) {
-          bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
-          if (!alreadyAdded) {
-            await pc.addTrack(track, localStream!);
+        try {
+          final senders = await pc.getSenders();
+          for (var track in localStream!.getTracks()) {
+            bool alreadyAdded = senders.any((s) => s.track?.id == track.id);
+            if (!alreadyAdded) {
+              await pc.addTrack(track, localStream!);
+            }
           }
-        }
 
-        // Renegotiate.
-        RTCSessionDescription offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        _socket!.emit('offer', {
-          'target': id,
-          'offer': offer.toMap(),
-          'fromName': 'Participant',
-        });
-        dev.log('📤 [RTC] Renegotiation offer sent to $id');
+          if (pc.signalingState != RTCSignalingState.RTCSignalingStateClosed) {
+            // Renegotiate.
+            RTCSessionDescription offer = await pc.createOffer({
+              'offerToReceiveAudio': 1,
+              'offerToReceiveVideo': 1,
+            });
+            await pc.setLocalDescription(offer);
+            _socket!.emit('offer', {
+              'target': id,
+              'offer': offer.toMap(),
+              'fromName': 'Participant',
+            });
+            dev.log('📤 [RTC] Renegotiation offer sent to $id');
+          }
+        } catch (renegErr) {
+          dev.log('⚠️ [RTC] Renegotiation error for $id: $renegErr');
+        }
       }
 
       dev.log('✅ [RTC] Local stream fully started and renegotiated');
     } catch (e) {
       dev.log('❌ [RTC] Error starting local stream: $e');
-      // Do NOT rethrow here. A rethrow from an async function called inside
-      // addPostFrameCallback becomes an unhandled Future rejection on Android
-      // which crashes the Dart isolate ("GraduWay keeps stopping").
-      // Instead, surface the error through the UI callback.
       localStream = null;
-      onError?.call('Could not access camera/mic: ${e.toString().split('\n').first}');
+      // Do NOT trigger fatal onError — we do not want the student to be kicked out of the classroom.
     }
   }
 

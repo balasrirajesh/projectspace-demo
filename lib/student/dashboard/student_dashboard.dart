@@ -28,10 +28,15 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
   void _joinSession(String roomId) {
     if (roomId.isNotEmpty) {
-      final formattedId = roomId.trim().toLowerCase().replaceAll(' ', '-');
+      final clean = roomId.trim().toLowerCase().replaceAll(' ', '-');
+      final formattedId = clean.startsWith('int-') || clean.startsWith('brd-') || clean.startsWith('mentorship-')
+          ? clean
+          : 'int-$clean';
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
-          builder: (context) => InteractiveClassroomPage(roomId: formattedId),
+          builder: (context) => formattedId.startsWith('brd-')
+              ? BroadcastStreamingPage(streamId: formattedId)
+              : InteractiveClassroomPage(roomId: formattedId),
         ),
       );
     } else {

@@ -406,14 +406,24 @@ class _SessionsPageState extends State<SessionsPage> with SingleTickerProviderSt
                   onPressed: () {
                     final roomId = controller.text.trim();
                     if (roomId.isNotEmpty) {
+                      final clean = roomId.toLowerCase().replaceAll(' ', '-');
+                      final provider = context.read<MentorshipProvider>();
+                      final prefix = isInteractive ? 'int-' : 'brd-';
+                      String targetId = clean;
+                      if (!clean.startsWith(prefix)) {
+                        final prefixed = '$prefix$clean';
+                        if (provider.webinars.any((w) => w['id'] == prefixed) || !provider.webinars.any((w) => w['id'] == clean)) {
+                          targetId = prefixed;
+                        }
+                      }
                       Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                           builder: (context) => isInteractive
                               ? InteractiveClassroomPage(
-                                  roomId: roomId.toLowerCase().replaceAll(' ', '-'),
+                                  roomId: targetId,
                                 )
                               : student_broadcast.BroadcastStreamingPage(
-                                  streamId: roomId.toLowerCase().replaceAll(' ', '-'),
+                                  streamId: targetId,
                                 ),
                         ),
                       );

@@ -58,6 +58,14 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
   final ScrollController _scrollController = ScrollController();
 
+  String get _effectiveRoomId {
+    final raw = widget.roomId.trim().toLowerCase().replaceAll(' ', '-');
+    if (raw.startsWith('int-') || raw.startsWith('brd-') || raw.startsWith('mentorship-')) {
+      return raw;
+    }
+    return 'int-$raw';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -245,7 +253,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     _classroomService.onPermissionUpdate = (mic, video, screenShare) {
       if (!mounted) return;
 
-      dev.log('🔐 [UI] Permission update received: mic=$mic video=$video');
+      dev.log('🔐 [UI] Permission update received: mic=$mic video=$video screenShare=$screenShare');
 
       setState(() {
         _canAccessMic = mic;
@@ -257,22 +265,22 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(mic || video
-              ? "✅ Media access granted — starting camera/mic..."
-              : "🚫 Your media access has been revoked."),
-          backgroundColor: mic || video ? Colors.green : Colors.redAccent,
+          content: Text(mic || video || screenShare
+              ? "✅ Media access granted by host."
+              : "🚫 Media access has been revoked."),
+          backgroundColor: mic || video || screenShare ? Colors.green : Colors.orange.shade800,
           duration: const Duration(seconds: 3),
         ),
       );
 
-      // Execute stream changes after a short delay to avoid rapid state transitions
+      // Execute stream changes safely
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
 
         if (mic || video) {
           if (_classroomService.localStream == null) {
             try {
-              await _classroomService.startLocalStream();
+              await _classroomService.startLocalStream(audio: mic, video: video);
               if (mounted && _classroomService.localStream != null) {
                 setState(() {
                   _localRenderer.srcObject = _classroomService.localStream;
@@ -280,12 +288,11 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
               }
             } catch (e) {
               dev.log('❌ [RTC] Failed to start stream: $e');
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not access camera/mic: $e'), backgroundColor: Colors.red),
-                );
-              }
             }
+          } else {
+            // Already started - adjust track enabled states
+            _classroomService.toggleAudio(mic && !_isMuted);
+            _classroomService.toggleVideo(video && !_isCameraOff);
           }
         } else {
           // Revoked
@@ -370,7 +377,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
 
     await _classroomService.joinRoom(
       serverUrl: AuthProvider.getSignalingUrl(),
-      roomId: widget.roomId,
+      roomId: _effectiveRoomId,
       userName: auth.userName,
       role: classroomRole,
       startWithMedia: classroomRole == ClassroomRole.mentor, // Students start without media
@@ -380,7 +387,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
       context.read<NotificationProvider>().addNotification({
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'title': 'You are Live!',
-        'body': 'Your students can now join the session: ${widget.roomId}',
+        'body': 'Your students can now join the session: $_effectiveRoomId',
         'time': 'Just now',
         'isRead': false,
       });
@@ -450,17 +457,18 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     // Step 4: Leave the signaling room and clean up peer connections.
     await _classroomService.leaveRoom();
 
-    // Step 5: Re-connect the MentorshipProvider's global-lobby socket.
-    // The ClassroomService is a singleton. When joinRoom() was called for
-    // this classroom, it disconnected the MentorshipProvider's global-lobby
-    // connection. Now that the classroom is over, we restore it so the
-    // Sessions page continues to show live rooms.
+    // Step 5: If the leaving user was the host/mentor, end and delete the room
     try {
+      final auth = context.read<AuthProvider>();
+      final isHost = (auth.role == UserRole.mentor || auth.role == UserRole.alumni || auth.role == UserRole.admin);
       final mentorship = context.read<MentorshipProvider>();
+      
+      if (isHost) {
+        await mentorship.endWebinar(widget.roomId);
+      }
       mentorship.reconnectLobby();
     } catch (_) {
-      // context may be invalid at this point — that's fine,
-      // the provider will reconnect on next page visit.
+      // context may be unmounted — provider will sync on next lobby load
     }
   }
 
@@ -531,7 +539,7 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    "Room: ${widget.roomId}",
+                    "Room: $_effectiveRoomId",
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
