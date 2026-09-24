@@ -35,6 +35,7 @@ class _BroadcastStreamingPageState extends State<BroadcastStreamingPage>
   bool _isCameraOff = false;
   String? _errorMessage;
   bool _isConnecting = true;
+  String _hostName = "Host";
   String get _effectiveStreamId {
     final raw = widget.streamId.trim().toLowerCase().replaceAll(' ', '-');
     if (raw.startsWith('brd-') || raw.startsWith('int-') || raw.startsWith('mentorship-')) {

@@ -115,11 +115,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     };
 
     _classroomService.onRemoteStreamRemoved = (id) {
-      setState(() {
-        _remoteRenderers[id]?.dispose();
-        _remoteRenderers.remove(id);
-        if (_activeScreenShareId == id) _activeScreenShareId = null;
-      });
+      if (mounted) {
+        setState(() {
+          _remoteRenderers[id]?.dispose();
+          _remoteRenderers.remove(id);
+          if (_activeScreenShareId == id) _activeScreenShareId = null;
+        });
+      }
     };
 
     _classroomService.onRemoteScreenStreamAdded = (id, stream) async {
@@ -140,11 +142,13 @@ class _InteractiveClassroomPageState extends State<InteractiveClassroomPage> {
     };
 
     _classroomService.onRemoteScreenStreamRemoved = (id) {
-      setState(() {
-        _remoteScreenRenderers[id]?.dispose();
-        _remoteScreenRenderers.remove(id);
-        if (_activeScreenShareId == id) _activeScreenShareId = null;
-      });
+      if (mounted) {
+        setState(() {
+          _remoteScreenRenderers[id]?.dispose();
+          _remoteScreenRenderers.remove(id);
+          if (_activeScreenShareId == id) _activeScreenShareId = null;
+        });
+      }
     };
 
     _classroomService.onRemoteScreenShareUpdated = (id, isSharing) {
