@@ -137,17 +137,6 @@ const isHostRole = (role) => {
 };
 
 const getFormattedRoomList = () => {
-  // Clean up any stale rooms that have no active participants
-  Object.keys(rooms).forEach(id => {
-    if (id !== 'global-lobby') {
-      const participantMap = rooms[id].participants || {};
-      const count = Object.keys(participantMap).length;
-      if (count === 0) {
-        delete rooms[id];
-      }
-    }
-  });
-
   return Object.keys(rooms)
     .filter(id => id !== 'global-lobby')
     .map(id => {
@@ -157,7 +146,7 @@ const getFormattedRoomList = () => {
       return {
         id,
         title: rooms[id].title || id,
-        isLive: hosts.length > 0,
+        isLive: hosts.length > 0 || rooms[id].isLive === true,
         attendees: Object.keys(participantMap).length,
         startTime: rooms[id].startTime
       };
