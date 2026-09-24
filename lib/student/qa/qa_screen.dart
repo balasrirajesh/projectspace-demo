@@ -288,7 +288,14 @@ class _QuestionCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(radius: 14, backgroundImage: NetworkImage(question.answers.first.alumniPhotoUrl)),
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundImage: NetworkImage(
+                      question.answers.first.alumniPhotoUrl.isNotEmpty
+                          ? question.answers.first.alumniPhotoUrl
+                          : 'https://i.pravatar.cc/150',
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

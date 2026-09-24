@@ -184,7 +184,14 @@ class _AlumniCard extends StatelessWidget {
             // ── Avatar ───────────────────────────────────────────────────────
             Stack(
               children: [
-                CircleAvatar(radius: 26, backgroundImage: NetworkImage(alumni.photoUrl)),
+                CircleAvatar(
+                  radius: 26,
+                  backgroundImage: NetworkImage(
+                    alumni.photoUrl.isNotEmpty
+                        ? alumni.photoUrl
+                        : 'https://i.pravatar.cc/150',
+                  ),
+                ),
                 if (alumni.isVerified)
                   Positioned(
                     right: 0, bottom: 0,

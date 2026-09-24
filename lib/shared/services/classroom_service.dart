@@ -305,14 +305,12 @@ class ClassroomService {
       // For receive-only peer connection (student initially without mic/cam),
       // add transceivers in RecvOnly direction so SDP negotiations include video & audio reception.
       try {
-        await pc.addTransceiver(
-          track: null,
-          kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+        await pc.addTransceiverOfType(
+          type: RTCRtpMediaType.RTCRtpMediaTypeAudio,
           init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
         );
-        await pc.addTransceiver(
-          track: null,
-          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+        await pc.addTransceiverOfType(
+          type: RTCRtpMediaType.RTCRtpMediaTypeVideo,
           init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
         );
       } catch (e) {
